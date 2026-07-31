@@ -49,6 +49,15 @@
   .devs label{font-size:12px;color:var(--dim);display:grid;gap:4px}
   .devs select{font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--shell);color:var(--ink);max-width:100%}
   .hint{font-size:12px!important;color:var(--dim);margin:0 0 14px!important}
+  #roster{position:absolute;top:calc(100% + 7px);left:0;z-index:40;min-width:210px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 34px rgba(0,0,0,.5);display:none;overflow:hidden}
+  #roster.open{display:block}
+  .rrow{display:flex;align-items:center;gap:9px;padding:8px 12px;font-size:13px;border-bottom:1px solid rgba(255,255,255,.05)}
+  .rrow:last-child{border-bottom:0}
+  .rdot{width:7px;height:7px;border-radius:50%;flex:0 0 auto}
+  .rdot.on{background:var(--green)}
+  .rdot.off{background:var(--dim)}
+  .rstate{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim)}
+  .rstate.muted{color:var(--green)}
   #chat{position:fixed;top:0;right:0;bottom:0;width:320px;max-width:88vw;background:var(--panel);border-left:1px solid var(--line);display:none;flex-direction:column;z-index:15}
   #chat.open{display:flex}
   .chathead{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--line);font-size:13px;font-weight:650}
@@ -56,6 +65,24 @@
   .msg{font-size:13.5px;line-height:1.5}
   .msg b{color:var(--blue);font-weight:650;display:block;font-size:11.5px;margin-bottom:2px}
   .msg.sys{color:var(--dim);font-size:12px;font-style:italic}
+  .tabs{display:flex;gap:4px}
+  .tab{font-size:12px;padding:5px 11px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--dim)}
+  .tab.on{background:var(--shell);color:var(--ink);border-color:var(--dim)}
+  #txlog{flex:1;overflow-y:auto;padding:12px 14px;display:none;flex-direction:column;gap:9px}
+  #txlog.on{display:flex}
+  #txbanner{display:none;flex-direction:column;gap:3px;padding:12px 14px;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.5}
+  #txbanner.on{display:flex}
+  #txbanner b{font-family:var(--mono);font-size:11px;letter-spacing:.11em;text-transform:uppercase}
+  #txbanner span{color:var(--dim)}
+  #txbanner.live{background:rgba(232,96,76,.1);border-bottom-color:rgba(232,96,76,.35)}
+  #txbanner.live b{color:var(--red)}
+  #txbanner.safe{background:rgba(143,214,148,.1);border-bottom-color:rgba(143,214,148,.35)}
+  #txbanner.safe b{color:var(--green)}
+  .tx{font-size:13.5px;line-height:1.5}
+  .tx b{color:var(--green);font-weight:650;display:block;font-size:11.5px;margin-bottom:2px}
+  .tx.interim{opacity:.5;font-style:italic}
+  #txbar{display:none;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--dim);font-family:var(--mono)}
+  #txbar.on{display:flex}
   #chatform{display:flex;gap:7px;padding:11px;border-top:1px solid var(--line)}
   #chatinput{flex:1;font-family:inherit;font-size:13px;padding:9px 11px;border-radius:8px;border:1px solid var(--line);background:var(--shell);color:var(--ink);min-width:0}
   #devbar{display:none;gap:9px;padding:0 12px 12px;background:var(--shell);justify-content:center;flex-wrap:wrap}
@@ -97,7 +124,8 @@
 <header>
   <span class="chip" id="roomchip">room</span>
   <span class="chip" id="whochip">you</span>
-  <span class="chip" id="peoplechip">1 here</span>
+  <span class="nywrap"><button class="chip" id="peoplechip" type="button" title="who is here, and who is muted">1 here</button>
+    <div id="roster"></div></span>
   <span class="chip" id="netchip">connecting</span>
   <span class="spacer"></span>
   <button id="invite" class="chip">Copy invite</button>
@@ -105,8 +133,17 @@
 </header>
 
 <aside id="chat">
-  <div class="chathead"><span>Chat</span><button id="chatclose" class="chip">close</button></div>
+  <div class="chathead">
+    <span class="tabs"><button id="tabchat" class="tab on" type="button">Chat</button><button id="tabtx" class="tab" type="button">Transcript</button></span>
+    <button id="chatclose" class="chip">close</button>
+  </div>
   <div id="chatlog"></div>
+  <div id="txlog" hidden></div>
+  <div id="txbanner"><b id="txbannert">Paused</b><span id="txbannerm">Your mic is muted. Nothing is being captured. Talk freely.</span></div>
+  <div id="txbar" hidden>
+    <span id="txstate">off</span>
+    <button id="txdl" class="chip" type="button">Download</button>
+  </div>
   <form id="chatform"><input id="chatinput" placeholder="Message everyone" autocomplete="off" maxlength="800"><button type="submit">Send</button></form>
 </aside>
 
@@ -192,8 +229,19 @@
   const room = new LK.Room({ adaptiveStream: true, dynacast: true });
   const el = {};
 
+  // KEYED BY IDENTITY, NOT SID (bug, 2026-07-30: "I saw myself in there three times").
+  // A session id is per CONNECTION - a refresh, a redeploy, or any reconnect mints a new one,
+  // so tiles keyed by sid accumulate a fresh ghost on every rejoin while the old one has no
+  // event left to remove it. Identity is stable per person for the life of the room, which is
+  // exactly the lifetime a tile should have. Rejoining now REUSES your tile instead of adding
+  // another one.
   function tileFor(sid, name, isLocal) {
-    if (el[sid]) return el[sid];
+    if (el[sid]) {
+      // Same person back on a new connection: refresh the label and reuse the tile.
+      const nm = el[sid].querySelector(".tname");
+      if (nm) nm.textContent = name + (isLocal ? " (you)" : "");
+      return el[sid];
+    }
     const d = document.createElement("div");
     d.className = "tile";
     d.innerHTML = '<div class="avatar"></div><video autoplay playsinline' + (isLocal ? " muted" : "") + '></video>' +
@@ -225,21 +273,21 @@
   }
 
   room
-    .on(LK.RoomEvent.ParticipantConnected, (p) => { tileFor(p.sid, p.name || p.identity, false); countPeople(); say(`${p.name || p.identity} joined`, true); })
-    .on(LK.RoomEvent.ParticipantDisconnected, (p) => { if (el[p.sid]) { el[p.sid].remove(); delete el[p.sid]; } countPeople(); say(`${p.name || p.identity} left`, true); })
+    .on(LK.RoomEvent.ParticipantConnected, (p) => { tileFor(p.identity, p.name || p.identity, false); countPeople(); say(`${p.name || p.identity} joined`, true); })
+    .on(LK.RoomEvent.ParticipantDisconnected, (p) => { if (el[p.identity]) { el[p.identity].remove(); delete el[p.identity]; } countPeople(); say(`${p.name || p.identity} left`, true); })
     .on(LK.RoomEvent.ConnectionQualityChanged, (q, p) => { if (p && p.isLocal) paintNet(q); })
     .on(LK.RoomEvent.Reconnecting, () => paintNet("poor"))
     .on(LK.RoomEvent.Reconnected, () => { paintNet("good"); say("reconnected", true); })
-    .on(LK.RoomEvent.TrackSubscribed, (track, pub, p) => { tileFor(p.sid, p.name || p.identity, false); attach(track, p.sid); })
+    .on(LK.RoomEvent.TrackSubscribed, (track, pub, p) => { tileFor(p.identity, p.name || p.identity, false); attach(track, p.identity); })
     .on(LK.RoomEvent.TrackUnsubscribed, (track, pub, p) => {
       track.detach();
       if (track.source === LK.Track.Source.ScreenShare) main.classList.remove("sharing");
-      if (el[p.sid]) el[p.sid].querySelector(".avatar").style.display = "";
+      if (el[p.identity]) el[p.identity].querySelector(".avatar").style.display = "";
     })
     // Someone else's mute. Shown per person and by name, so nobody is ever recorded or
     // heard without it being visible on their own tile.
-    .on(LK.RoomEvent.TrackMuted, (pub, p) => { if (pub.kind === "audio") setMutedLook(p.sid, true); })
-    .on(LK.RoomEvent.TrackUnmuted, (pub, p) => { if (pub.kind === "audio") setMutedLook(p.sid, false); })
+    .on(LK.RoomEvent.TrackMuted, (pub, p) => { if (pub.kind === "audio") { setMutedLook(p.identity, true); countPeople(); } })
+    .on(LK.RoomEvent.TrackUnmuted, (pub, p) => { if (pub.kind === "audio") { setMutedLook(p.identity, false); countPeople(); } })
     .on(LK.RoomEvent.Disconnected, () => fail("You left the room", "Close the tab, or use the link again if it has not expired yet."));
 
   // PRE-JOIN (owner, 2026-07-30): "have the mic and camera off by default and let them choose
@@ -347,10 +395,31 @@
   const chatEl = document.getElementById("chat");
   const chatLog = document.getElementById("chatlog");
 
+  // WHO IS HERE, AND WHO IS MUTED, in one glance (owner, 2026-07-30). The per-tile badge
+  // already exists, but on a call with a screen share the tiles shrink and you cannot scan
+  // them. This is the list you actually want when you are about to ask someone a question and
+  // do not know whether they can answer.
+  const rosterEl = document.getElementById("roster");
   function countPeople() {
     const n = (room.state === "connected" ? room.remoteParticipants.size + 1 : 1);
     peopleChip.textContent = n === 1 ? "just you" : `${n} here`;
+    if (room.state !== "connected") return;
+    const rows = [];
+    const add = (who, live, you) => rows.push(
+      `<div class="rrow"><span class="rdot ${live ? "on" : "off"}"></span>` +
+      `<span>${esc(who)}${you ? " (you)" : ""}</span>` +
+      `<span class="rstate ${live ? "" : "muted"}">${live ? "live" : "muted"}</span></div>`);
+    const me = room.localParticipant;
+    add(me.name || me.identity, me.isMicrophoneEnabled, true);
+    room.remoteParticipants.forEach((rp) => {
+      // A participant with no published audio track at all reads as muted, which is the
+      // honest answer: either way, nothing of theirs is being heard.
+      const pub = rp.getTrackPublication(LK.Track.Source.Microphone);
+      add(rp.name || rp.identity, !!(pub && !pub.isMuted && pub.isSubscribed !== false), false);
+    });
+    rosterEl.innerHTML = rows.join("");
   }
+  peopleChip.onclick = () => { countPeople(); rosterEl.classList.toggle("open"); };
 
   const QUALITY = { excellent: ["good", "ok"], good: ["good", "ok"], poor: ["poor connection", "bad"], unknown: ["…", ""] };
   function paintNet(q) {
@@ -373,6 +442,10 @@
   const enc = new TextEncoder(), dec = new TextDecoder();
   room.on(LK.RoomEvent.DataReceived, (payload, p) => {
     let m; try { m = JSON.parse(dec.decode(payload)); } catch { return; }
+    if (m && m.t === "tx" && typeof m.body === "string") {
+      txAdd((p && (p.name || p.identity)) || "someone", m.body, false);
+      return;
+    }
     if (m && m.t === "chat" && typeof m.body === "string") {
       say(`<b>${esc((p && (p.name || p.identity)) || "someone")}</b>${esc(m.body)}`);
       if (!chatEl.classList.contains("open")) document.getElementById("chatbtn").classList.add("on");
@@ -397,6 +470,139 @@
   };
   document.getElementById("chatbtn").onclick = toggleChat;
   document.getElementById("chatclose").onclick = toggleChat;
+
+  // ---- TRANSCRIPT ------------------------------------------------------------------
+  // Each browser transcribes ONLY ITS OWN microphone and publishes the finished lines over the
+  // data channel, so everyone ends up with the same transcript, speaker names attached, and
+  // there is still no server and no audio at rest anywhere.
+  //
+  // ⭐ MUTE MUST MEAN NOTHING IS CAPTURED (owner, 2026-07-30: "I don't want any weird granular
+  // situations where people go off mute to talk to their family members"). This needs real
+  // care, because the speech API opens its OWN microphone stream - muting the CALL track does
+  // not stop it. Three guards, deliberately overlapping:
+  //   1. ABORT, never stop(), on mute. stop() FLUSHES buffered audio into one last result,
+  //      which would publish the first words of exactly the private aside being protected.
+  //      abort() discards it.
+  //   2. Every result handler re-checks the live mic state and drops anything that arrives
+  //      while muted, because a result can land in the gap between muting and the abort.
+  //   3. The auto-restart (the API stops itself after a pause) refuses to restart while muted.
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const txLog = document.getElementById("txlog");
+  const txState = document.getElementById("txstate");
+  const lines = [];
+  let rec = null, recWanted = false, interimEl = null;
+
+  const micLive = () => room.state === "connected" && room.localParticipant.isMicrophoneEnabled;
+
+  function txAdd(who, body, mine) {
+    const d = document.createElement("div");
+    d.className = "tx";
+    d.innerHTML = `<b>${esc(who)}</b>${esc(body)}`;
+    txLog.appendChild(d);
+    txLog.scrollTop = txLog.scrollHeight;
+    lines.push({ at: new Date().toISOString(), who, body });
+    if (mine) {
+      try { void room.localParticipant.publishData(enc.encode(JSON.stringify({ t: "tx", body })), { reliable: true }); } catch {}
+    }
+  }
+
+  // ⭐ ONE function owns EVERY surface that states whether words are being captured (owner,
+  // 2026-07-30: "make it really obvious... they'll know that you're not being recorded right
+  // now. Talk freely."). Split responsibility here would eventually let two indicators
+  // disagree, and on this particular claim a disagreement is worse than no indicator at all.
+  //
+  // The muted state is written as a POSITIVE STATEMENT, not an absence. "Not recording" is
+  // something you have to reason about; "nothing is being captured, talk freely" is something
+  // you can act on.
+  function setTxState(t) {
+    if (txState) txState.textContent = t;
+    const live = t === "listening";
+    const unsupported = t.startsWith("not supported");
+    const banner = document.getElementById("txbanner");
+    const bt = document.getElementById("txbannert");
+    const bm = document.getElementById("txbannerm");
+    const chip = document.getElementById("recchip");
+    if (banner) {
+      banner.className = "on " + (live ? "live" : unsupported ? "" : "safe");
+      bt.textContent = live ? "Transcribing" : unsupported ? "Not available" : "Paused";
+      bm.textContent = live
+        ? "Your words are being written into the transcript below. Mute to stop instantly."
+        : unsupported
+          ? "This browser cannot transcribe. Chrome or Edge can; nothing is captured here."
+          : "Your mic is muted. Nothing is being captured. Talk freely.";
+    }
+    if (chip) {
+      chip.textContent = live ? "transcribing" : unsupported ? "not recorded" : "not capturing";
+      chip.className = "chip " + (live ? "rec" : "ok");
+    }
+  }
+
+  function startRec() {
+    if (!SR || rec || !micLive()) return;
+    rec = new SR();
+    rec.continuous = true; rec.interimResults = true; rec.lang = navigator.language || "en-US";
+    rec.onresult = (e) => {
+      if (!micLive()) return;                       // guard 2
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const r = e.results[i];
+        const t = r[0].transcript.trim();
+        if (!t) continue;
+        if (r.isFinal) txAdd("You", t, true);
+        else interim += t + " ";
+      }
+      if (interimEl) interimEl.remove();
+      interimEl = null;
+      if (interim.trim()) {
+        interimEl = document.createElement("div");
+        interimEl.className = "tx interim";
+        interimEl.textContent = interim.trim();
+        txLog.appendChild(interimEl);
+        txLog.scrollTop = txLog.scrollHeight;
+      }
+    };
+    rec.onerror = () => { setTxState(micLive() ? "listening" : "off (muted)"); };
+    rec.onend = () => {
+      rec = null;
+      if (interimEl) { interimEl.remove(); interimEl = null; }
+      if (recWanted && micLive()) startRec();       // guard 3
+      else setTxState("off (muted)");
+    };
+    try { rec.start(); recWanted = true; setTxState("listening"); }
+    catch { rec = null; }
+  }
+
+  function stopRec() {
+    recWanted = false;
+    if (interimEl) { interimEl.remove(); interimEl = null; }
+    // guard 1: abort DISCARDS buffered audio. stop() would emit it.
+    if (rec) { try { rec.abort(); } catch {} rec = null; }
+    setTxState("off (muted)");
+  }
+
+  if (!SR) setTxState("not supported in this browser");
+
+  document.getElementById("txdl").onclick = () => {
+    if (!lines.length) return;
+    const body = lines.map((l) => `[${l.at.slice(11, 19)}] ${l.who}: ${l.body}`).join("\n");
+    const head = `Transcript - ${room.name}\n${new Date().toString()}\n` + "-".repeat(52) + "\n\n";
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([head + body + "\n"], { type: "text/plain" }));
+    a.download = `transcript-${room.name}.txt`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const showTab = (tx) => {
+    document.getElementById("tabchat").classList.toggle("on", !tx);
+    document.getElementById("tabtx").classList.toggle("on", tx);
+    chatLog.style.display = tx ? "none" : "flex";
+    txLog.classList.toggle("on", tx);
+    document.getElementById("txbar").classList.toggle("on", tx);
+    document.getElementById("chatform").style.display = tx ? "none" : "flex";
+  };
+  document.getElementById("tabchat").onclick = () => showTab(false);
+  document.getElementById("tabtx").onclick = () => showTab(true);
 
   document.getElementById("invite").onclick = async () => {
     try {
@@ -423,7 +629,7 @@
       await room.connect(url, token);
       document.getElementById("roomchip").textContent = room.name;
       document.getElementById("whochip").textContent = room.localParticipant.name || room.localParticipant.identity;
-      tileFor(room.localParticipant.sid, room.localParticipant.name || room.localParticipant.identity, true);
+      tileFor(room.localParticipant.identity, room.localParticipant.name || room.localParticipant.identity, true);
       // Only what they asked for. Enabling then muting would still take the permission prompt
       // and still light the camera indicator, which is not the same thing as off.
       if (wantMic) await room.localParticipant.setMicrophoneEnabled(true);
@@ -437,11 +643,12 @@
       rememberDevices();
       countPeople();
       paintNet("good");
-      setMutedLook(room.localParticipant.sid, !wantMic);
+      if (wantMic) startRec(); else setTxState("off (muted)");
+      setMutedLook(room.localParticipant.identity, !wantMic);
       paintFooter();
       const cam = room.localParticipant.getTrackPublication(LK.Track.Source.Camera);
-      if (cam && cam.track) attach(cam.track, room.localParticipant.sid);
-      room.remoteParticipants.forEach((p) => tileFor(p.sid, p.name || p.identity, false));
+      if (cam && cam.track) attach(cam.track, room.localParticipant.identity);
+      room.remoteParticipants.forEach((p) => tileFor(p.identity, p.name || p.identity, false));
       gate.style.display = "none";
     } catch (e) {
       // Honest failure. The overwhelmingly likely causes are an expired token or a denied
@@ -459,16 +666,17 @@
     const c = room.localParticipant.isCameraEnabled;
     micBtn.classList.toggle("on", m);
     micBtn.querySelector("span").textContent = m ? "Mic on" : "Muted";
+    countPeople();
     camBtn0.classList.toggle("on", c);
     camBtn0.querySelector("span").textContent = c ? "Camera on" : "Camera off";
   }
   micBtn.onclick = async () => {
     const on = room.localParticipant.isMicrophoneEnabled;
     await room.localParticipant.setMicrophoneEnabled(!on);
-    if (!on) await refreshDevices();
+    if (!on) { await refreshDevices(); startRec(); } else { stopRec(); }
     micBtn.classList.toggle("on", !on);
     micBtn.querySelector("span").textContent = on ? "Muted" : "Mic on";
-    setMutedLook(room.localParticipant.sid, on);
+    setMutedLook(room.localParticipant.identity, on);
   };
 
   const camBtn = document.getElementById("cam");
@@ -492,7 +700,7 @@
     if (on) main.classList.remove("sharing"); else main.classList.add("sharing");
   };
 
-  document.getElementById("leave").onclick = () => room.disconnect();
+  document.getElementById("leave").onclick = () => { stopRec(); room.disconnect(); };
 })();
 </script>
 </body>

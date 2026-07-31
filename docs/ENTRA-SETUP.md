@@ -168,7 +168,7 @@ Two things to decide before you build it, not after:
 
 ## 7. Teams
 
-If your organisation runs on Microsoft Teams, the honest question is whether you should be
+If your organization runs on Microsoft Teams, the honest question is whether you should be
 building this at all. Teams already has identity, lobby, recording and transcription, and it is
 already approved by whoever approves things.
 

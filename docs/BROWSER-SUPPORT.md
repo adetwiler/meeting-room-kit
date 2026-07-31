@@ -49,7 +49,7 @@ The Web Speech API is a **dictation** API, not a meeting transcription engine.
   Widely reported at 3 to 4 seconds, and believed to be a bandwidth measure, since by default
   audio is sent to a server-side recognition engine rather than processed locally.
 - The standard workaround is to restart in `onend`, which this room does. **That restart is
-  lossy:** anything spoken while the session is tearing down and re-initialising belongs to no
+  lossy:** anything spoken while the session is tearing down and re-initializing belongs to no
   session and is simply gone.
 - `onend` **is not dependable** either. Chromium has a long-standing report of it never firing in
   continuous mode, leaving recognition hung. A watchdog is required alongside it, not instead.

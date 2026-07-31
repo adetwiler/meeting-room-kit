@@ -11,6 +11,9 @@ Drop `public/` on any static host and it works.
 > looking like it works**, and even where it works the API drops words by design.
 > 📄 **[GUIDE.html](GUIDE.html)** - open it in a browser. How it works, what it costs, how to set
 > it up, and the things that will bite you.
+> 🪤 **[docs/GOTCHAS.md](docs/GOTCHAS.md)** - two ways this stack fails while looking
+> like a limit on your account: LiveKit token claim shapes, and serving the room privately
+> over a mesh VPN.
 > 🏢 **[docs/ENTRA-SETUP.md](docs/ENTRA-SETUP.md)** - real identities from Microsoft Entra, one
 > shared link, a waiting room, transcripts filed automatically. All four need the same small
 > backend; this is the build order and the traps.
@@ -84,13 +87,13 @@ the useful signal is the explicit negative rather than silence.
 Pull requests welcome. Run `.githooks/install.sh` once per clone - it sets `core.hooksPath` so
 the pre-commit gates run.
 
-## Licence
+## License
 
 MIT (see [LICENSE](LICENSE)).
 
 `public/vendor/livekit-client.umd.js` is the **LiveKit JavaScript client SDK**, Apache-2.0,
 vendored unmodified so the page has no CDN dependency and works offline. Its copyright and
-licence are the upstream project's.
+license are the upstream project's.
 
 Everything else is a thin wrapper: one HTML page and one token script, plain standard-library
 code, no dependencies, no proprietary logic.

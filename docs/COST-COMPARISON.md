@@ -6,7 +6,7 @@ product instead of running this, and they are listed too.
 
 ⚠️ **Read the caveats before quoting any number here.** All figures are **public list prices**
 captured **30 July 2026**. Vendors change tiers often, most quote **annual** billing (monthly
-runs roughly 20 to 40 percent higher), and **list price is rarely what an organisation actually
+runs roughly 20 to 40 percent higher), and **list price is rarely what an organization actually
 pays** - it mainly anchors a negotiation. **Verify on each vendor's own pricing page before it
 goes in front of a procurement decision.**
 
@@ -19,7 +19,7 @@ These get conflated and they should not be:
 1. **The meeting itself** - carrying video, audio and screen share.
 2. **The notes** - transcription and AI summaries on top.
 
-Most organisations already pay for (1) as part of an existing productivity suite. The question
+Most organizations already pay for (1) as part of an existing productivity suite. The question
 is usually really about (2).
 
 ---
@@ -46,7 +46,7 @@ Business tiers cluster at roughly **$19 to $30 per user per month**.
 | Microsoft 365 (Business Basic → E5) | **$6 to $57.75** /user/mo |
 | Microsoft 365 Copilot | **+$30** /user/mo on top |
 
-🔴 **The single most important line in this document:** if your organisation already pays for a
+🔴 **The single most important line in this document:** if your organization already pays for a
 suite that includes meetings and transcription, **the marginal cost of using it is zero.** Any
 tool you add is an *additional* line item, not a replacement, unless it lets you drop something.
 
@@ -127,5 +127,5 @@ tenant; or wanting no third party holding your audio at all.
 Prices were read from vendor pricing pages and public comparisons on **30 July 2026**. Several
 widely-cited comparison articles are **published by vendors themselves or are affiliate-linked**,
 so they are marketing rather than neutral benchmarking; treat any single-source figure sceptically
-and re-verify. Nothing in this document describes any particular organisation, contract, or
+and re-verify. Nothing in this document describes any particular organization, contract, or
 negotiated rate.

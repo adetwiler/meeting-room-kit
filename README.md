@@ -87,6 +87,13 @@ the useful signal is the explicit negative rather than silence.
 Pull requests welcome. Run `.githooks/install.sh` once per clone - it sets `core.hooksPath` so
 the pre-commit gates run.
 
+```bash
+node --test scripts/mobile.test.mjs
+```
+
+No dependencies and no test runner to install. The tests read `public/index.html` itself rather
+than a copy, so they fail when the page changes underneath them, which is the whole point.
+
 ## License
 
 MIT (see [LICENSE](LICENSE)).

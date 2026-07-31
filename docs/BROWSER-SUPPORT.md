@@ -13,6 +13,64 @@ Read this before anyone relies on the transcript. The video call works nearly ev
 | Firefox | ✅ | ❌ | ❌ |
 | **Brave** | ✅ | ❌ **and it used to lie about it** | ✅ |
 
+### On a phone
+
+| Browser | Call | Transcript | Screen share |
+|---|---|---|---|
+| iOS, any browser | ✅ | same as Safari above | ❌ |
+| Android Chrome | ✅ | same as Chrome above | ❌ |
+
+**Every browser on iOS is Safari.** Apple requires it, so Chrome, Edge, Firefox and Brave on an
+iPhone are the same WebKit engine wearing different icons, and the Safari row is the only row
+that applies. Testing "Chrome on iPhone" tells you nothing that testing Safari did not.
+
+**Screen sharing does not exist on any phone.** The Screen Capture API is absent in both mobile
+engines, so the button is feature-detected, disabled and relabelled rather than left to throw
+when tapped. Same for the speaker picker, which needs `setSinkId`.
+
+**A desktop window narrowed to phone width does not reproduce either mobile bug below.** Both
+depend on real device chrome: a toolbar that retracts, and an autoplay policy that a desktop
+gesture has usually already satisfied.
+
+---
+
+## 📱 The footer used to sit under the iOS toolbar
+
+`height: 100%` and `100vh` both resolve against **the tallest the viewport ever gets**, the state
+with Safari's toolbars retracted. The page is therefore always laid out taller than the screen
+actually is, so the bottom bar, the one holding **Leave**, renders underneath the toolbar. There
+is nothing to scroll to reach it, because the layout does not overflow. It is simply covered.
+
+`100dvh` tracks the viewport you can currently see. The page declares both:
+
+    html,body{height:100%}
+    html,body{height:100dvh}
+
+**Order matters.** A browser that cannot parse `dvh` drops that declaration and keeps the one
+before it, so the fallback has to come first. Reversed, it would overwrite the fix everywhere.
+
+The page also sets `viewport-fit=cover` and pads the header and footer with
+`env(safe-area-inset-*)`. Cover buys the full screen, and the cost is that content now runs under
+the notch and the home indicator, so both bars inset themselves. **All four sides, not just the
+bottom:** in landscape the notch moves to the side, and a bottom-only inset still puts Leave under
+hardware once the phone is turned.
+
+---
+
+## 🔇 Inbound audio can be blocked, silently
+
+Safari, and iOS Safari most aggressively, refuses to play inbound audio until a real user gesture.
+It fails **silently**: no exception, no console warning. Every control still reads correct, the
+other person's tile shows them talking, and there is no sound.
+
+LiveKit reports this as `RoomEvent.AudioPlaybackStatusChanged` with `room.canPlaybackAudio` false.
+The room shows one full-width **"Tap to hear everyone"** button when that happens, and removes it
+again the moment playback is allowed, so it is never permanent chrome for people who never hit it.
+
+**`startAudio()` must be called synchronously inside the tap handler.** A user gesture is spent by
+the first `await`, so an `async` handler that awaits anything first turns the button into a no-op
+that looks like it worked. `scripts/mobile.test.mjs` asserts this against the shipped page.
+
 ---
 
 ## 🔴 Brave: the API exists, and it never returns anything

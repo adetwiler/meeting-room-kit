@@ -83,7 +83,7 @@ createServer((req, res) => {
     if (isClient) {
       if (!CLIENTS_DIR) return send(res, 404, { ok: false, message: "CLIENTS_DIR is not set" }, origin);
       const slug = typeof body.client === "string" ? body.client : "";
-      // A plain slug ONLY. This is the whole path defence: no dots, no slashes, so it can
+      // A plain slug ONLY. This is the whole path defense: no dots, no slashes, so it can
       // never walk out of CLIENTS_DIR into the rest of the disk.
       if (!/^[a-z0-9][a-z0-9-]{0,40}$/.test(slug)) {
         return send(res, 400, { ok: false, message: "client must be a plain slug" }, origin);

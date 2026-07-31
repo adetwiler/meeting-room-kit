@@ -1189,11 +1189,22 @@
   }
 
   async function loadClient(slug) {
+    // SCOPE OR NOTHING, never a fallback identity. A hardcoded name used to sit here as the
+    // `||` default, which broke the default-deny promise this panel makes: with nobody else
+    // in the room there is no relationship to read through, so an empty room would have read
+    // the network as somebody who is not present. The sibling call sites already refuse on a
+    // null bind. A default identity in a scoped fetch is a bug even when the name is harmless,
+    // and this one also shipped a real name to a public URL.
+    const who = boundTo();
+    if (!who) {
+      clientLog.innerHTML = "<p>Nobody else is in the room yet, so there is nobody to scope this to.</p>";
+      return;
+    }
     clientLog.innerHTML = "<p>loading\u2026</p>";
     try {
       const r = await fetch(BRIDGE.replace("/ask", "/client"), {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ who: boundTo() || "alex", client: slug }),
+        body: JSON.stringify({ who, client: slug }),
       });
       const d = await r.json();
       if (!d.ok) { clientLog.innerHTML = "<p>" + esc(d.message || "not found") + "</p>"; return; }

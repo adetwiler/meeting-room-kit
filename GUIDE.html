@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Meeting room kit: how it works, what it costs, how to set it up</title>
+<style>
+  :root{--bg:#131018;--panel:#1c1724;--shell:#0f0c14;--line:rgba(255,255,255,.09);
+    --ink:#e9e2d5;--dim:#9a8fa8;--gold:#f2c94c;--blue:#7ec3e8;--green:#8fd694;--red:#e8604c;--violet:#b79cf0;
+    --font-ui:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;--mono:ui-monospace,"SF Mono",Menlo,monospace}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-ui);line-height:1.65}
+  .wrap{max-width:860px;margin:0 auto;padding:44px 26px 90px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--dim);margin:0 0 12px}
+  h1{font-size:31px;margin:0 0 12px;font-weight:650;letter-spacing:-.01em}
+  .lede{font-size:17px;color:var(--ink);opacity:.92;margin:0 0 34px}
+  h2{font-size:13px;font-family:var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:600;margin:46px 0 16px;padding-bottom:10px;border-bottom:1px solid var(--line)}
+  h3{font-size:17px;margin:26px 0 8px;font-weight:650}
+  p{margin:0 0 14px}
+  .dim{color:var(--dim)}
+  table{width:100%;border-collapse:collapse;margin:0 0 16px;font-size:14.5px}
+  th,td{text-align:left;padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--dim);font-weight:600}
+  td.n{font-family:var(--mono);color:var(--gold);white-space:nowrap}
+  code,pre{font-family:var(--mono);font-size:13px}
+  code{background:rgba(255,255,255,.05);padding:1px 6px;border-radius:4px;color:var(--blue)}
+  pre{background:#0d0b12;border:1px solid var(--line);border-radius:9px;padding:14px 16px;overflow-x:auto;color:var(--blue);margin:0 0 16px;line-height:1.6}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px 21px;margin:0 0 15px}
+  .card.warn{border-color:rgba(242,201,76,.42);background:rgba(242,201,76,.05)}
+  .card.good{border-color:rgba(143,214,148,.4);background:rgba(143,214,148,.05)}
+  .card p:last-child{margin-bottom:0}
+  .card h3{margin-top:0}
+  ol,ul{margin:0 0 16px;padding-left:22px}
+  li{margin-bottom:9px}
+  .steps{counter-reset:s;list-style:none;padding:0}
+  .steps>li{display:flex;gap:14px;margin-bottom:16px}
+  .steps>li::before{counter-increment:s;content:counter(s);font-family:var(--mono);font-size:12px;color:var(--bg);background:var(--blue);width:23px;height:23px;border-radius:50%;display:grid;place-items:center;flex:0 0 auto;margin-top:3px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p class="eyebrow">Meeting room kit</p>
+  <h1>How it works, what it costs, how to set it up</h1>
+  <p class="lede">A static web page that hosts a real video meeting. No server to run, no
+  database, no accounts, and no credentials stored in the thing you deploy.</p>
+
+  <h2>How it works</h2>
+  <p>The page is plain HTML and JavaScript. It connects to <b>LiveKit</b>, an open-source
+  WebRTC platform, using an <b>access token</b> that is created somewhere else and passed in the
+  URL.</p>
+
+  <div class="card good">
+    <h3>Why the token is minted outside the page</h3>
+    <p>Signing a token needs an API secret. If the page did the signing, that secret would have
+    to be shipped to every browser that loads it, which is the same as publishing it.</p>
+    <p>So <code>mint-token.mjs</code> signs tokens wherever <i>you</i> run it, and the browser
+    only ever receives the finished token: scoped to <b>one room</b>, with an <b>expiry</b>.
+    Three things follow, and they are the whole reason for this shape:</p>
+    <ul>
+      <li><b>The hosted page holds nothing worth stealing.</b> A static host is genuinely
+      sufficient rather than a shortcut.</li>
+      <li><b>A leaked link expires by itself.</b> It grants one room for a few hours, not an
+      account.</li>
+      <li><b>There is no server</b> to run, patch, monitor or pay for.</li>
+    </ul>
+  </div>
+
+  <h2>What it does</h2>
+  <table>
+    <tr><th>Feature</th><th>Notes</th></tr>
+    <tr><td>Video, audio, screen share</td><td>Any modern browser. Nothing to install.</td></tr>
+    <tr><td><b>Joins with mic and camera OFF</b></td><td>You choose before entering. The browser only asks for permission if you opt in, so opening a link costs nothing and grants nothing.</td></tr>
+    <tr><td><b>Mute is mechanical</b></td><td>Muting <i>unpublishes</i> the track. Nothing is transmitted at all. It is not a flag that a recorder is asked to respect.</td></tr>
+    <tr><td>Device pickers</td><td>Microphone, camera and speakers, before joining and during the call. Choices are remembered. Hot-plugging a headset updates the list.</td></tr>
+    <tr><td>Text chat</td><td>Over the data channel. Join and leave notices too.</td></tr>
+    <tr><td>Who is here, connection quality</td><td>Plus explicit reconnecting state, so a freeze is explained rather than mysterious.</td></tr>
+    <tr><td>Copy invite</td><td>From inside the room.</td></tr>
+    <tr><td>Screen share tab switching</td><td>Asks Chrome for its native <i>"Share this tab instead"</i> button, so changing what you share is one click. Chrome fast-switches <b>tabs</b> only, so share a tab rather than a whole window.</td></tr>
+  </table>
+
+  <div class="card warn">
+    <h3>Not included: recording</h3>
+    <p>Deliberately. Recording is where the real questions live: consent, retention, who may
+    read it afterwards, and in any regulated setting whether it may exist at all. That belongs
+    to whoever owns the compliance posture.</p>
+    <p><b>If this goes anywhere near regulated or client data, treat recording as the first
+    question rather than a later feature</b>, and check it against your own policies before
+    anyone dials in. The room states <i>"not recorded"</i> in its header on purpose: for anyone
+    evaluating it, the useful signal is the explicit negative, not silence.</p>
+  </div>
+
+  <h2>What it costs</h2>
+  <p class="dim">From LiveKit's own pricing page, checked 30 July 2026. Verify before relying on
+  it; providers change tiers.</p>
+  <table>
+    <tr><th>Plan</th><th>Price</th><th>Included minutes</th><th>Data</th><th>Max participants</th></tr>
+    <tr><td><b>Build</b> (free)</td><td class="n">$0</td><td class="n">5,000</td><td class="n">50 GB</td><td class="n">100</td></tr>
+    <tr><td>Ship</td><td class="n">$50/mo</td><td class="n">150,000</td><td class="n">250 GB</td><td class="n">1,000</td></tr>
+    <tr><td>Scale</td><td class="n">$500/mo</td><td class="n">1.5M</td><td class="n">3 TB</td><td class="n">5,000</td></tr>
+  </table>
+  <p><b>Minutes are counted per participant</b>, so a two-person call uses 2 minutes for every
+  minute of wall clock. On the free tier that is roughly:</p>
+  <ul>
+    <li><b>41 hours a month</b> of one-to-one calls</li>
+    <li><b>27 hours</b> with three people</li>
+    <li><b>20 hours</b> with four</li>
+  </ul>
+  <p>Overage above the included amounts runs about <code>$0.0005</code> per participant-minute
+  on Ship. Hosting the page itself is free on any static host: it is one HTML file and a
+  vendored library, well under a megabyte.</p>
+  <div class="card warn">
+    <p><b>One number nobody should assume.</b> LiveKit's pricing page says overage is billed at
+    standard rates on the free Build tier, while their documentation elsewhere describes Build
+    as having no overage allowed. Those statements conflict. It does not matter at pilot volume,
+    but pin it down before anyone depends on it.</p>
+  </div>
+  <p>LiveKit's server is also <b>open source and self-hostable</b>, so none of this is a
+  one-way door. The page connects to a URL; where that URL points is your decision.</p>
+
+  <h2>Setting it up</h2>
+  <ol class="steps">
+    <li><b>Create a LiveKit project.</b> LiveKit Cloud's free tier needs no card. Note three
+    values: the <code>wss://</code> project URL, the API key, and the API secret. <b>The secret
+    displays once.</b></li>
+    <li><b>Host the <code>public/</code> folder</b> on any static host. It needs HTTPS, because
+    browsers refuse camera and microphone access on plain HTTP.</li>
+    <li><b>Mint a link per person.</b> Same <code>--room</code> value means the same call; give
+    each person their own <code>--identity</code> so names render.
+      <pre>LIVEKIT_URL=wss://your-project.example \
+LIVEKIT_API_KEY=... \
+LIVEKIT_API_SECRET=... \
+node mint-token.mjs --room standup --identity sam --hours 4 \
+  --base https://your-room-host</pre>
+    </li>
+    <li><b>Send each person their own link.</b> Never reuse one link for two people: identity
+    lives in the token, so two people on one link both show up as the same person.</li>
+  </ol>
+
+  <div class="card">
+    <h3>Things that will bite you</h3>
+    <ul>
+      <li><b>HTTPS is mandatory.</b> No camera or microphone on plain HTTP, in any browser.</li>
+      <li><b>Device names are hidden until permission is granted.</b> Before you turn on a mic,
+      the picker can only show generic entries. That is the browser, not the page.</li>
+      <li><b>Speaker selection does not exist in Safari or Firefox.</b> The row hides itself
+      there rather than offering a control that silently does nothing.</li>
+      <li><b>Corporate networks.</b> WebRTC needs UDP. Locked-down networks may need firewall
+      rules or a TURN relay; the connection-quality chip is the early warning.</li>
+      <li><b>Links expire</b> (4 hours by default). An expired link looks exactly like a broken
+      one, so say so when you send it.</li>
+    </ul>
+  </div>
+
+  <h2>Licensing</h2>
+  <p><code>public/vendor/livekit-client.umd.js</code> is the LiveKit JavaScript client SDK,
+  Apache-2.0, vendored unmodified so the page has no CDN dependency and works offline.</p>
+  <p>Everything else is a <b>thin wrapper</b>: one HTML page and one token script, plain
+  standard-library code, no dependencies and no proprietary logic. There is deliberately nothing
+  novel or business-specific in it, so it can be adopted, rewritten or thrown away freely.</p>
+  <p class="dim">No analytics, no telemetry, no third-party requests beyond your own LiveKit
+  endpoint.</p>
+</div>
+</body>
+</html>

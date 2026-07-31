@@ -1,0 +1,5 @@
+.githooks/denylist.local
+node_modules
+.vercel
+*.tgz
+.DS_Store

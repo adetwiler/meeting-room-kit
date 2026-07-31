@@ -404,8 +404,8 @@
   // link costs nothing and grants nothing.
   let wantMic = false, wantCam = false;
 
-  // DEVICE SWITCHING (owner, 2026-07-30: "I don't think Alex has a way to switch his audio
-  // source"). Without this, whatever Windows picked as default is what you are stuck with,
+  // DEVICE SWITCHING (owner, 2026-07-30, about a guest: "I don't think he has a way to switch
+  // his audio source"). Without this, whatever Windows picked as default is what you are stuck with,
   // and on a machine with a webcam mic, a headset and an interface that is a coin flip.
   //
   // TWO HONEST CONSTRAINTS, both handled rather than hidden:
@@ -655,7 +655,7 @@
     //
     // 🔴 THE SCOPE IS THE SENDER, NOT THE ROOM. Using our own allow-list here would hand a
     // guest our entire memory network through a helpful-looking feature. The whole point is
-    // that Alex's question searches Alex's world.
+    // that the guest's question searches the guest's world.
     if (m && m.t === "ask-req" && typeof m.q === "string" && typeof m.id === "string") {
       const asker = (p && p.identity) || "";
       if (!asker) return;
@@ -755,7 +755,7 @@
   //      while muted, because a result can land in the gap between muting and the abort.
   //   3. The auto-restart (the API stops itself after a pause) refuses to restart while muted.
   // ⚠️ FEATURE DETECTION IS NOT ENOUGH HERE, AND BRAVE IS WHY (bug, 2026-07-30: "it's saying
-  // Alex Charles for everyone"). Brave ships the Web Speech API SURFACE but never returns
+  // the other person's name for everyone"). Brave ships the Web Speech API SURFACE but never returns
   // results - webkitSpeechRecognition exists, detection passes, "listening" is displayed, and
   // nothing is ever captured. Open upstream since 2019. The failure mode is the worst kind: a
   // transcript that looks like it is working while recording only the OTHER person, so every
@@ -905,14 +905,14 @@
 
   // ---- ASK THE MEMORY NETWORK, THROUGH THE GATE ---------------------------------------
   // The original intent of this whole room: ask a question mid-meeting and get an answer from
-  // the memory network, SCOPED to the person you are with. Alex's room reads Alex's world.
+  // the memory network, SCOPED to the person you are with. A guest's room reads that guest's world.
   //
   // The answer comes from a LOCAL bridge on this machine (127.0.0.1), so the network never
   // leaves the laptop and the deployed page still holds nothing. The bridge names no default
   // relationship, and gate.py enforces default-deny underneath it. Every answer shows the file
   // it came from, so the allow-list is auditable by both people in the room.
   //
-  // ⭐ A ZERO-RESULT ANSWER IS SHOWN, NOT SWALLOWED. "Nothing Alex is allowed to see matches
+  // ⭐ A ZERO-RESULT ANSWER IS SHOWN, NOT SWALLOWED. "Nothing this guest is allowed to see matches
   // that" is the most important thing this panel can say: it proves the gate is doing
   // something rather than the query being empty.
   const BRIDGE = "http://127.0.0.1:4795/ask";
@@ -1148,11 +1148,22 @@
   }
 
   async function loadClient(slug) {
+    // SCOPE OR NOTHING, never a fallback identity. A hardcoded name used to sit here as the
+    // `||` default, which broke the default-deny promise this panel makes: with nobody else
+    // in the room there is no relationship to read through, so an empty room would have read
+    // the network as somebody who is not present. The sibling call sites already refuse on a
+    // null bind. A default identity in a scoped fetch is a bug even when the name is harmless,
+    // and this one also shipped a real name to a public URL.
+    const who = boundTo();
+    if (!who) {
+      clientLog.innerHTML = "<p>Nobody else is in the room yet, so there is nobody to scope this to.</p>";
+      return;
+    }
     clientLog.innerHTML = "<p>loading\u2026</p>";
     try {
       const r = await fetch(BRIDGE.replace("/ask", "/client"), {
         method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ who: boundTo() || "alex", client: slug }),
+        body: JSON.stringify({ who, client: slug }),
       });
       const d = await r.json();
       if (!d.ok) { clientLog.innerHTML = "<p>" + esc(d.message || "not found") + "</p>"; return; }

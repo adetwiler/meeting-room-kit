@@ -897,6 +897,8 @@
   // access switched OFF for everyone - a company standup has different rules from a client
   // call, and the room should not need a person to remember that mid-meeting.
   const POLICY_NOTX = q.get("notx") === "1";
+  // Panels this person actually has. Absent = all of them, so an old link keeps working.
+  const PANELS = q.get("panels") ? new Set(q.get("panels").split(",").map((x) => x.trim())) : null;
   const POLICY_NOMEM = q.get("nomem") === "1";
 
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -1045,6 +1047,23 @@
   // that" is the most important thing this panel can say: it proves the gate is doing
   // something rather than the query being empty.
   const BRIDGE = "http://127.0.0.1:4795/ask";
+  // ⭐ PROBE ONCE, REMEMBER THE ANSWER. A guest has no bridge, so every panel they opened fired
+  // another ERR_CONNECTION_REFUSED into their console: four of them, which reads as a broken app
+  // to the exact person you are showing it to. The bridge is checked ONCE and the result cached,
+  // so a guest makes at most one failed request for the whole meeting.
+  let bridgeUp = null;   // null = unknown, true/false = settled
+  async function haveBridge() {
+    if (bridgeUp !== null) return bridgeUp;
+    try {
+      const r = await fetch(BRIDGE, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ who: "", q: "" }),
+      });
+      // Any HTTP answer at all means something is listening; 400 is the expected refusal.
+      bridgeUp = true; bridgeSeen = true; await r.text().catch(() => {});
+    } catch { bridgeUp = false; }
+    return bridgeUp;
+  }
   const askLog = document.getElementById("asklog");
   // Questions we asked the host, waiting on an answer, keyed by a short id.
   const pending = {};
@@ -1063,10 +1082,28 @@
     if (!q) return;
     const who = boundTo();
     input.value = "";
+    const up = await haveBridge();
     const card = document.createElement("div");
     card.className = "ans";
     card.innerHTML = `<span class="q">${esc(q)}</span><span>asking…</span>`;
     askLog.appendChild(card); askLog.scrollTop = askLog.scrollHeight;
+    if (up === false) {
+      // Guest path: no request is made at all, so nothing lands in their console.
+      card.className = "ans";
+      card.innerHTML = `<span class="q">${esc(q)}</span><span>asking the host…</span>`;
+      const id2 = Math.random().toString(36).slice(2, 10);
+      pending[id2] = card;
+      try {
+        await room.localParticipant.publishData(enc.encode(JSON.stringify({ t: "ask-req", id: id2, q })), { reliable: true });
+        setTimeout(() => {
+          if (pending[id2]) {
+            pending[id2].innerHTML = `<span class="q">${esc(q)}</span><span>No answer from the host.</span>`;
+            delete pending[id2];
+          }
+        }, 20000);
+      } catch {}
+      return;
+    }
     if (!who) {
       card.className = "ans none";
       card.innerHTML = `<span class="q">${esc(q)}</span><span>Nobody else is in the room yet, so there is no relationship to scope this to.</span>`;
@@ -1130,6 +1167,19 @@
   // someone to ask why, and "because this meeting has rules" is a conversation nobody wants
   // to have twice. A room without them simply does not have them.
   function applyPolicy() {
+    // Remove panels this relationship does not include, for the same reason as the policy
+    // flags: a tab that exists and then fails is a broken product, a tab that is not there is
+    // a design. This is also what stops the console filling with refused bridge calls.
+    if (PANELS) {
+      if (!PANELS.has("brief")) { const e = document.getElementById("tabbrief"); if (e) e.remove(); }
+      if (!PANELS.has("client")) {
+        const e = document.getElementById("tabclient"); if (e) e.remove();
+        const f = document.getElementById("clientform"); if (f) f.remove();
+      }
+      if (!PANELS.has("ask")) {
+        ["tabask", "askbtn"].forEach((id) => { const e = document.getElementById(id); if (e) e.remove(); });
+      }
+    }
     if (POLICY_NOMEM) {
       ["tabask", "tabbrief", "tabclient", "askbtn"].forEach((id) => {
         const e = document.getElementById(id); if (e) e.remove();
@@ -1183,6 +1233,10 @@
   const briefLog = document.getElementById("brieflog");
   let briefLoaded = false;
   async function loadBrief() {
+    if (!(await haveBridge())) {
+      briefLog.innerHTML = '<div class="bitem">This board lives on the host’s machine. Ask them to press <b>Present</b>.</div>';
+      return;
+    }
     const who = boundTo();
     briefLog.innerHTML = "";
     if (!who) { briefLog.innerHTML = '<div class="bitem">Nobody else is in the room yet, so there is no shared board to read.</div>'; return; }
@@ -1277,6 +1331,10 @@
   }
 
   async function loadClient(slug) {
+    if (!(await haveBridge())) {
+      clientLog.innerHTML = "<p>This panel reads the host’s memory network, so it only loads on their machine. Ask them to press <b>Present</b> and it will appear here.</p>";
+      return;
+    }
     // SCOPE OR NOTHING, never a fallback identity. A hardcoded name used to sit here as the
     // `||` default, which broke the default-deny promise this panel makes: with nobody else
     // in the room there is no relationship to read through, so an empty room would have read
@@ -1416,8 +1474,22 @@
       tileFor(room.localParticipant.identity, room.localParticipant.name || room.localParticipant.identity, true);
       // Only what they asked for. Enabling then muting would still take the permission prompt
       // and still light the camera indicator, which is not the same thing as off.
-      if (wantMic) await room.localParticipant.setMicrophoneEnabled(true);
-      if (wantCam) await room.localParticipant.setCameraEnabled(true);
+      // A dismissed or denied permission prompt is a NORMAL thing a person does, not an
+      // exception to leak. Uncaught, it surfaced as "NotAllowedError: Permission dismissed" in
+      // the console and the join silently half-failed. Now it joins anyway, as a listener, and
+      // says what happened.
+      const denied = [];
+      if (wantMic) {
+        try { await room.localParticipant.setMicrophoneEnabled(true); }
+        catch { denied.push("microphone"); wantMic = false; }
+      }
+      if (wantCam) {
+        try { await room.localParticipant.setCameraEnabled(true); }
+        catch { denied.push("camera"); }
+      }
+      if (denied.length) {
+        say(`your ${denied.join(" and ")} ${denied.length > 1 ? "were" : "was"} blocked by the browser - you joined as a listener. Use the permissions icon in the address bar to allow it, then press the button again.`, true);
+      }
       // Permission now granted (if they opted in), so the real device names exist. Apply any
       // pre-join choice for real, since before connecting there was no room to switch on.
       await refreshDevices();

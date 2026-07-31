@@ -6,6 +6,9 @@ thing you deploy.**
 
 Drop `public/` on any static host and it works.
 
+> ⚠️ **[docs/BROWSER-SUPPORT.md](docs/BROWSER-SUPPORT.md)** - READ THIS BEFORE TRUSTING THE
+> TRANSCRIPT. The call works nearly everywhere; the transcript does not, **Brave fails while
+> looking like it works**, and even where it works the API drops words by design.
 > 📄 **[GUIDE.html](GUIDE.html)** - open it in a browser. How it works, what it costs, how to set
 > it up, and the things that will bite you.
 > 🏢 **[docs/ENTRA-SETUP.md](docs/ENTRA-SETUP.md)** - real identities from Microsoft Entra, one

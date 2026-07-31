@@ -48,6 +48,11 @@
   .devs{display:grid;gap:9px;margin:0 0 10px}
   .devs label{font-size:12px;color:var(--dim);display:grid;gap:4px}
   .devs select{font-family:inherit;font-size:13px;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--shell);color:var(--ink);max-width:100%}
+  .tests{display:flex;align-items:center;gap:9px;margin:0 0 10px}
+  .tests button{font-size:12px;padding:7px 11px;white-space:nowrap}
+  .meter{flex:1;height:9px;border-radius:6px;background:var(--shell);border:1px solid var(--line);overflow:hidden;min-width:60px}
+  .meter i{display:block;height:100%;width:0%;background:var(--green);transition:width .06s linear}
+  .meter i.hot{background:var(--gold)}
   .hint{font-size:12px!important;color:var(--dim);margin:0 0 14px!important}
   #roster{position:absolute;top:calc(100% + 7px);left:0;z-index:40;min-width:210px;background:var(--panel);border:1px solid var(--line);border-radius:10px;box-shadow:0 14px 34px rgba(0,0,0,.5);display:none;overflow:hidden}
   #roster.open{display:block}
@@ -113,6 +118,11 @@
       <label>Microphone <select id="selmic"><option value="">Default</option></select></label>
       <label>Camera <select id="selcam"><option value="">Default</option></select></label>
       <label id="lblspk">Speakers <select id="selspk"><option value="">Default</option></select></label>
+    </div>
+    <div class="tests">
+      <button id="testmic" type="button">Test mic</button>
+      <span class="meter"><i id="meterbar"></i></span>
+      <button id="testspk" type="button">Test sound</button>
     </div>
     <p class="hint" id="devhint">Device names appear once you turn the mic or camera on - browsers
     hide them until you grant permission.</p>
@@ -266,6 +276,7 @@
     if (track.source === LK.Track.Source.ScreenShare) {
       track.attach(screenEl);
       main.classList.add("sharing");
+      play("share");
       return;
     }
     if (track.kind === "video") { track.attach(d.querySelector("video")); d.querySelector(".avatar").style.display = "none"; }
@@ -273,8 +284,8 @@
   }
 
   room
-    .on(LK.RoomEvent.ParticipantConnected, (p) => { tileFor(p.identity, p.name || p.identity, false); countPeople(); say(`${p.name || p.identity} joined`, true); })
-    .on(LK.RoomEvent.ParticipantDisconnected, (p) => { if (el[p.identity]) { el[p.identity].remove(); delete el[p.identity]; } countPeople(); say(`${p.name || p.identity} left`, true); })
+    .on(LK.RoomEvent.ParticipantConnected, (p) => { tileFor(p.identity, p.name || p.identity, false); countPeople(); play("join"); say(`${p.name || p.identity} joined`, true); })
+    .on(LK.RoomEvent.ParticipantDisconnected, (p) => { if (el[p.identity]) { el[p.identity].remove(); delete el[p.identity]; } countPeople(); play("leave"); say(`${p.name || p.identity} left`, true); })
     .on(LK.RoomEvent.ConnectionQualityChanged, (q, p) => { if (p && p.isLocal) paintNet(q); })
     .on(LK.RoomEvent.Reconnecting, () => paintNet("poor"))
     .on(LK.RoomEvent.Reconnected, () => { paintNet("good"); say("reconnected", true); })
@@ -374,6 +385,85 @@
     .forEach(([n, k]) => { const e = sel(n); if (e) e.onchange = () => void pick(k, e.value); });
 
   document.getElementById("devtoggle").onclick = () => document.getElementById("devbar").classList.toggle("open");
+
+  // ---- CAN YOU HEAR ME / CAN I HEAR YOU ----------------------------------------------
+  // The single most common thing that goes wrong on a call, and the reason device pickers
+  // are otherwise useless: you cannot tell whether the one you picked is the one that works.
+  //
+  // ⭐ THE MIC TEST IS EXPLICIT AND SELF-RELEASING. It is a BUTTON, never an always-on meter,
+  // because an automatic level meter would open the microphone on a screen whose entire
+  // promise is that your mic is off. It runs for a fixed window and then STOPS EVERY TRACK,
+  // so the browser's recording indicator goes out and stays out.
+  const meter = document.getElementById("meterbar");
+  const testMicBtn = document.getElementById("testmic");
+  let testStream = null, testRaf = 0, testCtx = null, testTimer = 0;
+
+  function endMicTest() {
+    clearTimeout(testTimer); cancelAnimationFrame(testRaf);
+    if (testStream) { testStream.getTracks().forEach((t) => t.stop()); testStream = null; }
+    if (testCtx) { try { testCtx.close(); } catch {} testCtx = null; }
+    meter.style.width = "0%"; meter.classList.remove("hot");
+    testMicBtn.textContent = "Test mic";
+    testMicBtn.classList.remove("on");
+  }
+
+  testMicBtn.onclick = async () => {
+    if (testStream) { endMicTest(); return; }
+    try {
+      testStream = await navigator.mediaDevices.getUserMedia({
+        audio: chosen.audioinput ? { deviceId: { exact: chosen.audioinput } } : true,
+      });
+      await refreshDevices();                    // labels exist now that permission was granted
+      testCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const src = testCtx.createMediaStreamSource(testStream);
+      const an = testCtx.createAnalyser();
+      an.fftSize = 512;
+      src.connect(an);
+      const buf = new Uint8Array(an.frequencyBinCount);
+      testMicBtn.textContent = "Stop test";
+      testMicBtn.classList.add("on");
+      const tick = () => {
+        an.getByteTimeDomainData(buf);
+        let peak = 0;
+        for (const v of buf) peak = Math.max(peak, Math.abs(v - 128) / 128);
+        const pct = Math.min(100, Math.round(peak * 260));   // generous, so normal speech fills it
+        meter.style.width = pct + "%";
+        meter.classList.toggle("hot", pct > 88);
+        testRaf = requestAnimationFrame(tick);
+      };
+      tick();
+      // Hard stop. A test that runs until you remember to end it is a hot mic.
+      testTimer = setTimeout(endMicTest, 15000);
+    } catch (e) {
+      endMicTest();
+      const h = document.getElementById("devhint");
+      if (h) { h.style.display = ""; h.textContent = "Could not open that microphone. Check the browser's permission icon in the address bar."; }
+    }
+  };
+
+  // SPEAKER TEST: play through the SELECTED output, not the default, or it proves nothing.
+  document.getElementById("testspk").onclick = async () => {
+    try {
+      const c = new (window.AudioContext || window.webkitAudioContext)();
+      const dest = c.createMediaStreamDestination();
+      const o = c.createOscillator(), g = c.createGain();
+      o.type = "sine"; o.frequency.setValueAtTime(587.33, c.currentTime);
+      o.frequency.setValueAtTime(880, c.currentTime + 0.12);
+      g.gain.setValueAtTime(0.0001, c.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.25, c.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, c.currentTime + 0.5);
+      o.connect(g).connect(dest);
+      const a = new Audio();
+      a.srcObject = dest.stream;
+      if (chosen.audiooutput && a.setSinkId) { try { await a.setSinkId(chosen.audiooutput); } catch {} }
+      await a.play();
+      o.start(); o.stop(c.currentTime + 0.6);
+      setTimeout(() => { try { a.pause(); c.close(); } catch {} }, 900);
+    } catch {}
+  };
+
+  // Joining ends any test in progress - two live mic streams is one too many.
+  document.getElementById("gjoin").addEventListener("click", endMicTest);
 
   // DEVICE MEMORY. A picker you have to use every single time is a picker people stop using.
   // Stored per browser, and a device that has since been unplugged silently falls back to
@@ -486,7 +576,23 @@
   //   2. Every result handler re-checks the live mic state and drops anything that arrives
   //      while muted, because a result can land in the gap between muting and the abort.
   //   3. The auto-restart (the API stops itself after a pause) refuses to restart while muted.
+  // ⚠️ FEATURE DETECTION IS NOT ENOUGH HERE, AND BRAVE IS WHY (bug, 2026-07-30: "it's saying
+  // Alex Charles for everyone"). Brave ships the Web Speech API SURFACE but never returns
+  // results - webkitSpeechRecognition exists, detection passes, "listening" is displayed, and
+  // nothing is ever captured. Open upstream since 2019. The failure mode is the worst kind: a
+  // transcript that looks like it is working while recording only the OTHER person, so every
+  // line carries their name and it reads like a labelling bug.
+  //
+  // So there are two checks. Brave announces itself, and a watchdog catches every other
+  // browser that pretends. Saying "not transcribing" is the whole fix: an honest negative
+  // beats a confident lie.
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let srBlocked = false;
+  if (navigator.brave && typeof navigator.brave.isBrave === "function") {
+    navigator.brave.isBrave().then((yes) => {
+      if (yes) { srBlocked = true; stopRec(); setTxState("not supported in this browser"); }
+    }).catch(() => {});
+  }
   const txLog = document.getElementById("txlog");
   const txState = document.getElementById("txstate");
   const lines = [];
@@ -500,7 +606,11 @@
     d.innerHTML = `<b>${esc(who)}</b>${esc(body)}`;
     txLog.appendChild(d);
     txLog.scrollTop = txLog.scrollHeight;
-    lines.push({ at: new Date().toISOString(), who, body });
+    lines.push({
+      at: new Date().toISOString(),
+      who: who === "You" ? (room.localParticipant.name || room.localParticipant.identity) : who,
+      body,
+    });
     if (mine) {
       try { void room.localParticipant.publishData(enc.encode(JSON.stringify({ t: "tx", body })), { reliable: true }); } catch {}
     }
@@ -538,7 +648,7 @@
   }
 
   function startRec() {
-    if (!SR || rec || !micLive()) return;
+    if (!SR || srBlocked || rec || !micLive()) return;
     rec = new SR();
     rec.continuous = true; rec.interimResults = true; rec.lang = navigator.language || "en-US";
     rec.onresult = (e) => {
@@ -548,7 +658,9 @@
         const r = e.results[i];
         const t = r[0].transcript.trim();
         if (!t) continue;
-        if (r.isFinal) txAdd("You", t, true);
+        // The on-screen label stays "You", but the STORED line carries the real name, because
+      // a downloaded transcript full of "You" is useless to everyone who was not you.
+      if (r.isFinal) txAdd("You", t, true);
         else interim += t + " ";
       }
       if (interimEl) interimEl.remove();
@@ -568,7 +680,21 @@
       if (recWanted && micLive()) startRec();       // guard 3
       else setTxState("off (muted)");
     };
-    try { rec.start(); recWanted = true; setTxState("listening"); }
+    // WATCHDOG. If recognition starts and produces neither a result nor an onstart within
+    // 8 seconds while the mic is live, this browser is pretending. Downgrade honestly rather
+    // than leaving "listening" on screen forever.
+    let sawLife = false;
+    rec.onstart = () => { sawLife = true; };
+    const prevResult = rec.onresult;
+    rec.onresult = (e) => { sawLife = true; prevResult(e); };
+    try {
+      rec.start(); recWanted = true; setTxState("listening");
+      setTimeout(() => {
+        if (!sawLife && micLive() && recWanted) {
+          srBlocked = true; stopRec(); setTxState("not supported in this browser");
+        }
+      }, 8000);
+    }
     catch { rec = null; }
   }
 
@@ -700,7 +826,60 @@
     if (on) main.classList.remove("sharing"); else main.classList.add("sharing");
   };
 
-  document.getElementById("leave").onclick = () => { stopRec(); room.disconnect(); };
+  // ---- SOUNDS -----------------------------------------------------------------------
+  // SYNTHESISED IN CODE, not files. Three reasons, in order of weight:
+  //   1. This repo is public under MIT. Generated audio carries its own licence terms, and
+  //      sublicensing someone else's model output to every forker is a question nobody needs.
+  //      Code has no such question: these few lines are simply ours.
+  //   2. Nothing to download. No asset requests, no 404s, works offline.
+  //   3. The join and leave cues are the SAME phrase inverted, which is why they read as a
+  //      pair rather than two unrelated noises.
+  //
+  // Deliberately quiet (peak ~0.22) and short. A meeting tool that startles people gets its
+  // sounds turned off, and then it has no sounds.
+  let actx = null;
+  const audio = () => (actx ||= new (window.AudioContext || window.webkitAudioContext)());
+
+  function blip(freq, at, dur, gain) {
+    const c = audio(), t = c.currentTime + at;
+    const o = c.createOscillator(), g = c.createGain();
+    const o2 = c.createOscillator(), g2 = c.createGain();
+    o.type = "sine"; o.frequency.value = freq;
+    o2.type = "sine"; o2.frequency.value = freq * 2;   // quiet octave: warmth, not a bare beep
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + 0.014);   // short attack so it never clicks
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    g2.gain.setValueAtTime(0.0001, t);
+    g2.gain.exponentialRampToValueAtTime(gain * 0.22, t + 0.014);
+    g2.gain.exponentialRampToValueAtTime(0.0001, t + dur * 0.7);
+    o.connect(g).connect(c.destination); o2.connect(g2).connect(c.destination);
+    o.start(t); o2.start(t); o.stop(t + dur + 0.05); o2.stop(t + dur + 0.05);
+  }
+
+  function sweep(from, to, dur, gain) {
+    const c = audio(), t = c.currentTime;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(from, t);
+    o.frequency.exponentialRampToValueAtTime(to, t + dur);
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(gain, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(c.destination);
+    o.start(t); o.stop(t + dur + 0.05);
+  }
+
+  // D5 -> A5 rising, and the same two notes falling. One phrase, two directions.
+  const sfx = {
+    join:  () => { blip(587.33, 0, 0.42, 0.22); blip(880.00, 0.085, 0.5, 0.19); },
+    leave: () => { blip(880.00, 0, 0.42, 0.20); blip(587.33, 0.085, 0.5, 0.17); },
+    share: () => sweep(320, 1150, 0.34, 0.16),
+  };
+  // Browsers refuse audio before a gesture, so the context is created on the JOIN click and
+  // every later cue simply works. Nothing plays on the pre-join screen by design.
+  const play = (n) => { try { sfx[n](); } catch {} };
+
+  document.getElementById("leave").onclick = () => { stopRec(); play("leave"); room.disconnect(); };
 })();
 </script>
 </body>

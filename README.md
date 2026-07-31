@@ -30,6 +30,37 @@ Host `public/` anywhere static. **HTTPS is required** - browsers refuse camera a
 access on plain HTTP. Send each person **their own** link: identity lives in the token, so two
 people on one link collide and the server evicts one of them.
 
+## The memory panels (optional, and host-only by design)
+
+Ask, Brief and Client answer questions from a knowledge source **on the host's machine**, via
+`bridge.mjs`. It binds loopback, so a guest's browser cannot reach it - that is the security
+model, not a bug. Guests are told plainly, and the host gets a **Present** button that
+broadcasts what they are looking at over the data channel.
+
+Guests can still ASK: the question is relayed, the host's browser answers it **scoped to the
+asker's own identity**, and the result comes back. Nobody but the host ever touches the
+knowledge source.
+
+```
+ROOM_ORIGIN=https://your-room-host ASK_CMD=/path/to/your-search node bridge.mjs
+```
+
+`ASK_CMD` is any executable you own, called as `ASK_CMD <who> --json -n 4 <question>`. What a
+given `who` may see is **your command's** job - scope it there, and refuse unknown names.
+
+## Meeting policy
+
+Some rooms must not transcribe, or must not reach a knowledge source at all:
+
+```
+?notx=1     nothing is transcribed, and the room says so
+?nomem=1    Ask / Brief / Client are absent for everyone
+```
+
+Announced on the pre-join screen, before anyone is in the room. ⚠️ **This is a policy, not a
+wall** - the flags ride in the URL. It stops the room doing something by default and tells
+everyone what it is for; it does not defend against the person you invited.
+
 ## What it does
 
 - Video, audio, screen share, text chat, live transcript

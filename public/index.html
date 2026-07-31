@@ -63,6 +63,26 @@
   .rdot.off{background:var(--dim)}
   .rstate{margin-left:auto;font-family:var(--mono);font-size:10px;letter-spacing:.07em;text-transform:uppercase;color:var(--dim)}
   .rstate.muted{color:var(--green)}
+  /* The unread dot. Deliberately small, deliberately on the button you already look at,
+     and it NEVER carries a number - a count invites you to feel behind. It is presence
+     only: something arrived, and it is one click away. */
+  #chatbtn{position:relative}
+  .unread{position:absolute;top:6px;right:6px;width:8px;height:8px;border-radius:50%;
+    background:var(--blue);box-shadow:0 0 0 2px var(--shell);animation:pop .18s ease-out}
+  @keyframes pop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}
+
+  /* MUTED, unmissable but not ugly: a soft wash over YOUR OWN tile plus one clear label.
+     Only ever on your own tile - a badge on everyone's would be noise, and you can already
+     see their state in the roster. */
+  .tile.you.muted::after{content:"";position:absolute;inset:0;
+    background:linear-gradient(180deg,rgba(19,16,24,.05),rgba(19,16,24,.55));pointer-events:none}
+  .mutedbig{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:3;
+    display:none;align-items:center;gap:9px;padding:9px 15px;border-radius:26px;
+    background:rgba(19,16,24,.82);border:1px solid rgba(232,96,76,.5);color:var(--red);
+    font-size:13.5px;font-weight:650;letter-spacing:.01em;white-space:nowrap;
+    backdrop-filter:blur(6px)}
+  .tile.you.muted .mutedbig{display:flex}
+  .mutedbig svg{width:16px;height:16px}
   #chat{position:fixed;top:0;right:0;bottom:0;width:320px;max-width:88vw;background:var(--panel);border-left:1px solid var(--line);display:none;flex-direction:column;z-index:15}
   #chat.open{display:flex}
   .chathead{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-bottom:1px solid var(--line);font-size:13px;font-weight:650}
@@ -71,10 +91,48 @@
   .msg b{color:var(--blue);font-weight:650;display:block;font-size:11.5px;margin-bottom:2px}
   .msg.sys{color:var(--dim);font-size:12px;font-style:italic}
   .tabs{display:flex;gap:4px}
+  /* THIS MEETING (chat, transcript) | THE NETWORK (ask, brief, client). Five flat tabs read
+     as a menu you have to search; two groups read as a choice you have already half made. */
+  .tabsep{width:1px;align-self:stretch;background:var(--line);margin:0 3px}
   .tab{font-size:12px;padding:5px 11px;border-radius:7px;border:1px solid var(--line);background:transparent;color:var(--dim)}
   .tab.on{background:var(--shell);color:var(--ink);border-color:var(--dim)}
   #txlog{flex:1;overflow-y:auto;padding:12px 14px;display:none;flex-direction:column;gap:9px}
   #txlog.on{display:flex}
+  #clientlog{flex:1;overflow-y:auto;padding:14px 16px;display:none;flex-direction:column;line-height:1.6;font-size:13.5px}
+  #clientlog.on{display:flex}
+  #clientlog h1{font-size:17px;margin:0 0 10px;font-weight:650}
+  #clientlog h2{font-size:10.5px;font-family:var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--dim);margin:18px 0 7px;padding-bottom:6px;border-bottom:1px solid var(--line)}
+  #clientlog p{margin:0 0 10px}
+  #clientlog ol{counter-reset:cf;list-style:none;padding:0;margin:0 0 12px}
+  #clientlog ol li{counter-increment:cf;background:var(--shell);border:1px solid var(--line);border-radius:8px;padding:10px 12px 10px 38px;position:relative;margin-bottom:8px}
+  #clientlog ol li::before{content:counter(cf);position:absolute;left:11px;top:10px;font-family:var(--mono);font-size:11px;color:var(--bg);background:var(--gold);width:18px;height:18px;border-radius:4px;display:grid;place-items:center;font-weight:700}
+  #clientlog ul{padding-left:18px;margin:0 0 12px}
+  #clientlog li{margin-bottom:7px}
+  #clientform{display:none;gap:7px;padding:11px;border-top:1px solid var(--line)}
+  #clientform.on{display:flex}
+  #clientinput{flex:1;font-family:inherit;font-size:13px;padding:9px 11px;border-radius:8px;border:1px solid var(--line);background:var(--shell);color:var(--ink);min-width:0}
+  #brieflog{flex:1;overflow-y:auto;padding:12px 14px;display:none;flex-direction:column;gap:8px}
+  #brieflog.on{display:flex}
+  .bsec{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:9px 0 3px}
+  .bitem{font-size:13px;line-height:1.5;background:var(--shell);border:1px solid var(--line);border-radius:8px;padding:9px 11px;display:flex;gap:9px}
+  .bcarr{font-family:var(--mono);font-size:9.5px;color:var(--red);border:1px solid rgba(232,96,76,.4);background:rgba(232,96,76,.1);padding:2px 6px;border-radius:20px;height:fit-content;white-space:nowrap}
+  .bwho{font-family:var(--mono);font-size:10px;color:var(--blue);text-transform:uppercase}
+  #asklog{flex:1;overflow-y:auto;padding:12px 14px;display:none;flex-direction:column;gap:11px}
+  #asklog.on{display:flex}
+  #askform{display:none;gap:7px;padding:11px;border-top:1px solid var(--line)}
+  #askform.on{display:flex}
+  #askinput{flex:1;font-family:inherit;font-size:13px;padding:9px 11px;border-radius:8px;border:1px solid var(--line);background:var(--shell);color:var(--ink);min-width:0}
+  .ans{font-size:13px;line-height:1.55;border-left:2px solid var(--violet);padding-left:11px}
+  .ans .q{color:var(--violet);font-weight:650;display:block;margin-bottom:5px}
+  .hit{background:var(--shell);border:1px solid var(--line);border-radius:8px;padding:9px 11px;margin-bottom:8px}
+  .hhead{display:block;font-weight:650;font-size:12.5px;margin-bottom:4px;color:var(--ink)}
+  .hbody{display:block;color:var(--dim);font-size:12.5px;line-height:1.55}
+  .hbody b{color:var(--ink);font-weight:650}
+  .hbody i{font-style:normal;color:var(--violet);font-family:var(--mono);font-size:11px}
+  .hbody code{font-family:var(--mono);font-size:11.5px;background:rgba(255,255,255,.05);padding:1px 5px;border-radius:4px;color:var(--blue)}
+  .ans .src{font-family:var(--mono);font-size:10px;color:var(--dim);display:block;margin-top:5px}
+  .ans.none{border-left-color:var(--green)}
+  .ans.none .q{color:var(--green)}
   #txbanner{display:none;flex-direction:column;gap:3px;padding:12px 14px;border-bottom:1px solid var(--line);font-size:12.5px;line-height:1.5}
   #txbanner.on{display:flex}
   #txbanner b{font-family:var(--mono);font-size:11px;letter-spacing:.11em;text-transform:uppercase}
@@ -89,6 +147,13 @@
   #txbar{display:none;align-items:center;justify-content:space-between;gap:8px;padding:10px 12px;border-top:1px solid var(--line);font-size:11.5px;color:var(--dim);font-family:var(--mono)}
   #txbar.on{display:flex}
   #chatform{display:flex;gap:7px;padding:11px;border-top:1px solid var(--line)}
+  #filebtn{padding:9px 11px}
+  .filecard{background:var(--shell);border:1px solid var(--line);border-radius:9px;padding:10px 12px;display:flex;align-items:center;gap:10px;font-size:12.5px}
+  .filecard svg{width:17px;height:17px;color:var(--blue)}
+  .filecard .fmeta{flex:1;min-width:0}
+  .filecard .fname{display:block;font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .filecard .fsize{display:block;font-family:var(--mono);font-size:10px;color:var(--dim);margin-top:2px}
+  .filecard a{font-size:11.5px;font-weight:650;color:var(--green);text-decoration:none;border:1px solid rgba(143,214,148,.45);background:rgba(143,214,148,.12);padding:5px 11px;border-radius:7px;white-space:nowrap}
   #chatinput{flex:1;font-family:inherit;font-size:13px;padding:9px 11px;border-radius:8px;border:1px solid var(--line);background:var(--shell);color:var(--ink);min-width:0}
   #devbar{display:none;gap:9px;padding:0 12px 12px;background:var(--shell);justify-content:center;flex-wrap:wrap}
   #devbar.open{display:flex}
@@ -104,6 +169,7 @@
     <h1 id="gtitle">Ready to join</h1>
     <p id="gmsg">Your microphone and camera are <b>off</b>. Turn on whatever you want before you
     go in, or leave both off and join to listen.</p>
+    <p id="gpolicy" class="hint" hidden></p>
     <div class="prejoin">
       <button id="pmic" type="button">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19v3"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M16.95 16.95A7 7 0 0 1 5 12v-2"/><path d="M18.89 13.23A7 7 0 0 0 19 12v-2"/><path d="m2 2 20 20"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/></svg>
@@ -144,17 +210,27 @@
 
 <aside id="chat">
   <div class="chathead">
-    <span class="tabs"><button id="tabchat" class="tab on" type="button">Chat</button><button id="tabtx" class="tab" type="button">Transcript</button></span>
+    <span class="tabs"><button id="tabchat" class="tab on" type="button">Chat</button><button id="tabtx" class="tab" type="button">Transcript</button><span class="tabsep"></span><button id="tabask" class="tab" type="button">Ask</button><button id="tabbrief" class="tab" type="button">Brief</button><button id="tabclient" class="tab" type="button">Client</button></span>
     <button id="chatclose" class="chip">close</button>
   </div>
   <div id="chatlog"></div>
   <div id="txlog" hidden></div>
+  <div id="asklog" hidden></div>
+  <div id="brieflog" hidden></div>
+  <div id="clientlog" hidden></div>
+  <form id="clientform" hidden><input id="clientinput" placeholder="client, e.g. courtland" autocomplete="off" maxlength="40"><button type="submit">Load</button><button id="presentbtn" type="button" title="show this to everyone in the room">Present</button></form>
+  <form id="askform" hidden><input id="askinput" placeholder="Ask the memory network" autocomplete="off" maxlength="300"><button type="submit">Ask</button></form>
   <div id="txbanner"><b id="txbannert">Paused</b><span id="txbannerm">Your mic is muted. Nothing is being captured. Talk freely.</span></div>
   <div id="txbar" hidden>
     <span id="txstate">off</span>
     <button id="txdl" class="chip" type="button">Download</button>
   </div>
-  <form id="chatform"><input id="chatinput" placeholder="Message everyone" autocomplete="off" maxlength="800"><button type="submit">Send</button></form>
+  <form id="chatform"><input id="chatinput" placeholder="Message everyone" autocomplete="off" maxlength="800"><button type="submit">Send</button>
+    <button id="filebtn" type="button" title="send a file to everyone in the room">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l8.57-8.57A4 4 0 1 1 18 8.84l-8.59 8.57a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+    </button>
+    <input id="fileinput" type="file" hidden>
+  </form>
 </aside>
 
 <main id="main">
@@ -185,7 +261,11 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 3H4a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-3"/><path d="M8 21h8"/><path d="M12 17v4"/><path d="m17 8 5-5"/><path d="M17 3h5v5"/></svg>
     <span>Share screen</span>
   </button>
-  <button id="chatbtn">
+  <button id="askbtn" title="ask the memory network, scoped to who is in the room">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v-4"/><path d="M12 8h.01"/><circle cx="12" cy="12" r="10"/></svg>
+    <span>Ask</span>
+  </button>
+  <button id="chatbtn"><span class="unread" id="chatdot" hidden></span>
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6V2H8"/><path d="m8 18-4 4V8a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2Z"/><path d="M2 12h2"/><path d="M9 11v2"/><path d="M15 11v2"/><path d="M20 12h2"/></svg>
     <span>Chat</span>
   </button>
@@ -209,6 +289,16 @@
 // asked to respect. Each person controls only their own, and nobody can mute anyone else.
 (function () {
   const q = new URLSearchParams(location.search);
+  // Announced BEFORE anyone joins. A rule discovered afterwards is a rule that was broken.
+  {
+    const bits = [];
+    if (q.get("notx") === "1") bits.push("nothing is transcribed");
+    if (q.get("nomem") === "1") bits.push("the memory network is not reachable");
+    if (bits.length) {
+      const el = document.getElementById("gpolicy");
+      if (el) { el.hidden = false; el.innerHTML = "<b>This meeting's rules:</b> " + bits.join(", ") + "."; }
+    }
+  }
   const url = q.get("liveKitUrl") || q.get("url");
   const token = q.get("token");
   const gate = document.getElementById("gate");
@@ -255,7 +345,13 @@
     const d = document.createElement("div");
     d.className = "tile";
     d.innerHTML = '<div class="avatar"></div><video autoplay playsinline' + (isLocal ? " muted" : "") + '></video>' +
-                  '<span class="tname"></span><span class="notrec" style="display:none">not recording</span>';
+                  '<span class="tname"></span><span class="notrec" style="display:none">not recording</span>' +
+                  (isLocal ? '<span class="mutedbig">' +
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+                    '<path d="M12 19v3"/><path d="M15 9.34V5a3 3 0 0 0-5.68-1.33"/><path d="M16.95 16.95A7 7 0 0 1 5 12v-2"/>' +
+                    '<path d="M18.89 13.23A7 7 0 0 0 19 12v-2"/><path d="m2 2 20 20"/><path d="M9 9v3a3 3 0 0 0 5.12 2.12"/></svg>' +
+                    'You are muted</span>' : "");
+    if (isLocal) d.classList.add("you");
     d.querySelector(".avatar").textContent = (name || "?").slice(0, 1).toUpperCase();
     d.querySelector(".tname").textContent = name + (isLocal ? " (you)" : "");
     tiles.appendChild(d);
@@ -299,7 +395,7 @@
     // heard without it being visible on their own tile.
     .on(LK.RoomEvent.TrackMuted, (pub, p) => { if (pub.kind === "audio") { setMutedLook(p.identity, true); countPeople(); } })
     .on(LK.RoomEvent.TrackUnmuted, (pub, p) => { if (pub.kind === "audio") { setMutedLook(p.identity, false); countPeople(); } })
-    .on(LK.RoomEvent.Disconnected, () => fail("You left the room", "Close the tab, or use the link again if it has not expired yet."));
+    .on(LK.RoomEvent.Disconnected, () => endSession("Close the tab, or use the link again if it has not expired yet."));
 
   // PRE-JOIN (owner, 2026-07-30): "have the mic and camera off by default and let them choose
   // the option to turn it on when they join." Off is the right default for a link someone
@@ -529,16 +625,98 @@
   // from another participant is an XSS hole with a friendly face.
   const esc = (t) => { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; };
 
+  // Memory chunks arrive as one long line with markdown left in. Escape FIRST, then allow
+  // only bold and code back in - so nothing from the wire can become markup, but the answer
+  // still reads like something a person wrote.
+  function tidy(raw) {
+    let t = String(raw).replace(/\s+/g, " ").trim();
+    if (t.length > 420) t = t.slice(0, 420).replace(/\s+\S*$/, "") + "\u2026";
+    t = esc(t);
+    t = t.replace(/\*\*(.+?)\*\*/g, "<b>$1</b>");
+    t = t.replace(/`(.+?)`/g, "<code>$1</code>");
+    t = t.replace(/\[\[(.+?)\]\]/g, "<i>$1</i>");
+    // "- " mid-paragraph is a flattened bullet list; give it its break back.
+    t = t.replace(/\s-\s(?=[A-Z0-9])/g, "<br>\u00b7 ");
+    return t;
+  }
+
+  // A full path is noise on screen. The last two segments say where it came from.
+  const shortSource = (p) => {
+    const bits = String(p).split("/").filter(Boolean);
+    return bits.length <= 2 ? p : bits.slice(-2).join("/");
+  };
+
   const enc = new TextEncoder(), dec = new TextDecoder();
   room.on(LK.RoomEvent.DataReceived, (payload, p) => {
     let m; try { m = JSON.parse(dec.decode(payload)); } catch { return; }
+    // ---- RELAY: answer a guest's question on their behalf ------------------------------
+    // Only the host has the bridge. A guest publishes ask-req; we run it through the gate
+    // scoped to THEIR identity - never ours - and publish the results back.
+    //
+    // 🔴 THE SCOPE IS THE SENDER, NOT THE ROOM. Using our own allow-list here would hand a
+    // guest our entire memory network through a helpful-looking feature. The whole point is
+    // that Alex's question searches Alex's world.
+    if (m && m.t === "ask-req" && typeof m.q === "string" && typeof m.id === "string") {
+      const asker = (p && p.identity) || "";
+      if (!asker) return;
+      say(`${(p && (p.name || p.identity)) || "someone"} asked: ${m.q}`, true);
+      (async () => {
+        let payload;
+        try {
+          const r = await fetch(BRIDGE, {
+            method: "POST", headers: { "content-type": "application/json" },
+            body: JSON.stringify({ who: asker, q: m.q }),
+          });
+          const d = await r.json();
+          payload = d.ok
+            ? { t: "ask-res", id: m.id, count: d.count, results: d.results }
+            : { t: "ask-res", id: m.id, count: 0, error: "refused" };
+        } catch {
+          return;   // no bridge here either: stay silent and let their timeout speak
+        }
+        try { await room.localParticipant.publishData(enc.encode(JSON.stringify(payload)), { reliable: true }); } catch {}
+      })();
+      return;
+    }
+
+    if (m && m.t === "ask-res" && typeof m.id === "string") {
+      const card = pending[m.id];
+      if (!card) return;
+      delete pending[m.id];
+      const q = card.querySelector(".q") ? card.querySelector(".q").textContent : "";
+      if (!m.count) {
+        card.className = "ans none";
+        card.innerHTML = `<span class="q">${esc(q)}</span><span>Nothing you are allowed to see matches that.</span>`;
+        return;
+      }
+      card.innerHTML = `<span class="q">${esc(q)}</span>` + (m.results || []).map((x) => {
+        const head = (x.heading || "").trim();
+        return `<div class="hit">` +
+          (head && head !== "(no heading)" ? `<span class="hhead">${esc(head)}</span>` : "") +
+          `<span class="hbody">${tidy(x.text || "")}</span>` +
+          `<span class="src">${esc(shortSource(x.source || ""))}</span></div>`;
+      }).join("");
+      return;
+    }
+
+    if (m && m.t === "present" && typeof m.md === "string") {
+      // Rendered locally through our own escaping renderer, never trusted as markup.
+      clientLog.innerHTML = mdToHtml(m.md);
+      chatEl.classList.add("open");
+      showTab("client");
+      say(`${(p && (p.name || p.identity)) || "someone"} presented a brief`, true);
+      return;
+    }
     if (m && m.t === "tx" && typeof m.body === "string") {
       txAdd((p && (p.name || p.identity)) || "someone", m.body, false);
       return;
     }
     if (m && m.t === "chat" && typeof m.body === "string") {
       say(`<b>${esc((p && (p.name || p.identity)) || "someone")}</b>${esc(m.body)}`);
-      if (!chatEl.classList.contains("open")) document.getElementById("chatbtn").classList.add("on");
+      // Unread only if they are not already looking at the chat tab. Marking a message
+      // unread while it is on screen is how an indicator earns being ignored.
+      const looking = chatEl.classList.contains("open") && document.getElementById("tabchat").classList.contains("on");
+      if (!looking) document.getElementById("chatdot").hidden = false;
     }
   });
 
@@ -555,7 +733,7 @@
   };
   const toggleChat = () => {
     chatEl.classList.toggle("open");
-    document.getElementById("chatbtn").classList.remove("on");
+    document.getElementById("chatdot").hidden = true;
     if (chatEl.classList.contains("open")) document.getElementById("chatinput").focus();
   };
   document.getElementById("chatbtn").onclick = toggleChat;
@@ -586,6 +764,12 @@
   // So there are two checks. Brave announces itself, and a watchdog catches every other
   // browser that pretends. Saying "not transcribing" is the whole fix: an honest negative
   // beats a confident lie.
+  // MEETING POLICY, read from the link. A room can be created with transcription and memory
+  // access switched OFF for everyone - a company standup has different rules from a client
+  // call, and the room should not need a person to remember that mid-meeting.
+  const POLICY_NOTX = q.get("notx") === "1";
+  const POLICY_NOMEM = q.get("nomem") === "1";
+
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   let srBlocked = false;
   if (navigator.brave && typeof navigator.brave.isBrave === "function") {
@@ -648,7 +832,7 @@
   }
 
   function startRec() {
-    if (!SR || srBlocked || rec || !micLive()) return;
+    if (POLICY_NOTX || !SR || srBlocked || rec || !micLive()) return;
     rec = new SR();
     rec.continuous = true; rec.interimResults = true; rec.lang = navigator.language || "en-US";
     rec.onresult = (e) => {
@@ -719,16 +903,350 @@
     URL.revokeObjectURL(a.href);
   };
 
-  const showTab = (tx) => {
-    document.getElementById("tabchat").classList.toggle("on", !tx);
-    document.getElementById("tabtx").classList.toggle("on", tx);
-    chatLog.style.display = tx ? "none" : "flex";
-    txLog.classList.toggle("on", tx);
-    document.getElementById("txbar").classList.toggle("on", tx);
-    document.getElementById("chatform").style.display = tx ? "none" : "flex";
+  // ---- ASK THE MEMORY NETWORK, THROUGH THE GATE ---------------------------------------
+  // The original intent of this whole room: ask a question mid-meeting and get an answer from
+  // the memory network, SCOPED to the person you are with. Alex's room reads Alex's world.
+  //
+  // The answer comes from a LOCAL bridge on this machine (127.0.0.1), so the network never
+  // leaves the laptop and the deployed page still holds nothing. The bridge names no default
+  // relationship, and gate.py enforces default-deny underneath it. Every answer shows the file
+  // it came from, so the allow-list is auditable by both people in the room.
+  //
+  // ⭐ A ZERO-RESULT ANSWER IS SHOWN, NOT SWALLOWED. "Nothing Alex is allowed to see matches
+  // that" is the most important thing this panel can say: it proves the gate is doing
+  // something rather than the query being empty.
+  const BRIDGE = "http://127.0.0.1:4795/ask";
+  const askLog = document.getElementById("asklog");
+  // Questions we asked the host, waiting on an answer, keyed by a short id.
+  const pending = {};
+  const askForm = document.getElementById("askform");
+  // WHO the room is bound to = the other participant's identity. One person in the room means
+  // there is nobody to be scoped to, and the panel says so instead of guessing.
+  const boundTo = () => {
+    const others = [...room.remoteParticipants.values()];
+    return others.length ? others[0].identity : null;
   };
-  document.getElementById("tabchat").onclick = () => showTab(false);
-  document.getElementById("tabtx").onclick = () => showTab(true);
+
+  askForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const input = document.getElementById("askinput");
+    const q = input.value.trim();
+    if (!q) return;
+    const who = boundTo();
+    input.value = "";
+    const card = document.createElement("div");
+    card.className = "ans";
+    card.innerHTML = `<span class="q">${esc(q)}</span><span>asking…</span>`;
+    askLog.appendChild(card); askLog.scrollTop = askLog.scrollHeight;
+    if (!who) {
+      card.className = "ans none";
+      card.innerHTML = `<span class="q">${esc(q)}</span><span>Nobody else is in the room yet, so there is no relationship to scope this to.</span>`;
+      return;
+    }
+    try {
+      const r = await fetch(BRIDGE, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ who, q }),
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.message || "refused");
+      if (!d.count) {
+        card.className = "ans none";
+        card.innerHTML = `<span class="q">${esc(q)}</span><span>Nothing <b>${esc(who)}</b> is allowed to see matches that.</span>`;
+        return;
+      }
+      // A raw memory chunk is a wall of run-together prose with markdown artefacts in it.
+      // Tidying it is not cosmetic: an answer nobody can skim is an answer nobody reads,
+      // and this panel gets shown to other people on a screen share.
+      card.innerHTML = `<span class="q">${esc(q)}</span>` + d.results.map((x) => {
+        const head = (x.heading || "").trim();
+        return `<div class="hit">` +
+          (head && head !== "(no heading)" ? `<span class="hhead">${esc(head)}</span>` : "") +
+          `<span class="hbody">${tidy(x.text || "")}</span>` +
+          `<span class="src">${esc(shortSource(x.source || ""))}</span>` +
+        `</div>`;
+      }).join("");
+    } catch (err) {
+      if (hostish()) {
+        card.className = "ans";
+        card.innerHTML = `<span class="q">${esc(q)}</span><span>The memory bridge is not running on this machine. ` +
+          `Start it with <code>node bridge.mjs</code>.</span>`;
+        return;
+      }
+      // ⭐ NO BRIDGE HERE MEANS WE ARE THE GUEST, SO ASK THE ROOM. The host's browser answers
+      // on our behalf, and crucially it scopes the query to OUR identity - so a guest searches
+      // exactly what their own relationship allows and nothing more. The host's machine stays
+      // the only thing that ever touches the memory network; we only ever receive results.
+      const id = Math.random().toString(36).slice(2, 10);
+      pending[id] = card;
+      card.innerHTML = `<span class="q">${esc(q)}</span><span>asking the host\u2026</span>`;
+      try {
+        await room.localParticipant.publishData(
+          enc.encode(JSON.stringify({ t: "ask-req", id, q })), { reliable: true });
+        // If nobody answers, say so rather than spinning forever.
+        setTimeout(() => {
+          if (pending[id]) {
+            pending[id].innerHTML = `<span class="q">${esc(q)}</span><span>No answer from the host. ` +
+              `Their memory bridge may not be running.</span>`;
+            delete pending[id];
+          }
+        }, 20000);
+      } catch {
+        card.innerHTML = `<span class="q">${esc(q)}</span><span>Could not reach the room.</span>`;
+      }
+    }
+  };
+
+  // Panels a policy has switched off are REMOVED, not disabled. A greyed-out tab invites
+  // someone to ask why, and "because this meeting has rules" is a conversation nobody wants
+  // to have twice. A room without them simply does not have them.
+  function applyPolicy() {
+    if (POLICY_NOMEM) {
+      ["tabask", "tabbrief", "tabclient", "askbtn"].forEach((id) => {
+        const e = document.getElementById(id); if (e) e.remove();
+      });
+      const sep = document.querySelector(".tabsep"); if (sep) sep.remove();
+    }
+    if (POLICY_NOTX) {
+      const e = document.getElementById("tabtx"); if (e) e.remove();
+      const b = document.getElementById("txbanner");
+      if (b) { b.className = "on safe"; }
+    }
+    const chip = document.getElementById("recchip");
+    if (chip && POLICY_NOTX) { chip.textContent = "no transcript"; chip.className = "chip ok"; }
+  }
+
+  const showTab = (which) => {
+    const tx = which === "tx", ask = which === "ask", chat = which === "chat", brief = which === "brief", client = which === "client";
+    document.getElementById("tabchat").classList.toggle("on", chat);
+    document.getElementById("tabtx").classList.toggle("on", tx);
+    document.getElementById("tabask").classList.toggle("on", ask);
+    document.getElementById("tabbrief").classList.toggle("on", brief);
+    document.getElementById("tabclient").classList.toggle("on", client);
+    clientLog.classList.toggle("on", client);
+    document.getElementById("clientform").classList.toggle("on", client);
+    chatLog.style.display = chat ? "flex" : "none";
+    txLog.classList.toggle("on", tx);
+    askLog.classList.toggle("on", ask);
+    document.getElementById("brieflog").classList.toggle("on", brief);
+    document.getElementById("txbar").classList.toggle("on", tx);
+    askForm.classList.toggle("on", ask);
+    document.getElementById("chatform").style.display = chat ? "flex" : "none";
+    if (ask) document.getElementById("askinput").focus();
+  };
+  document.getElementById("tabchat").onclick = () => { showTab("chat"); document.getElementById("chatdot").hidden = true; };
+  document.getElementById("tabtx").onclick = () => showTab("tx");
+  document.getElementById("tabask").onclick = () => showTab("ask");
+
+  // ⭐ THE ASK PANEL NEEDS ITS OWN DOOR. It first shipped as a TAB inside the chat drawer, so
+  // reaching the headline feature meant clicking a button labelled "Chat" and then finding a
+  // tab - and it was reported as simply missing, which is what a feature nobody can find is.
+  // Opening it now guarantees BOTH: drawer open AND the right tab selected.
+  document.getElementById("askbtn").onclick = () => {
+    chatEl.classList.add("open");
+    showTab("ask");
+  };
+
+  // ---- THE BRIEF: what this meeting should be about ------------------------------------
+  // Ask answers a question you thought of. The BRIEF is the half you did not: what you two
+  // left open, what has been carried, and the decisions your own list says need both of you.
+  // Same relationship, same gate, so it can never surface something this person may not see.
+  const briefLog = document.getElementById("brieflog");
+  let briefLoaded = false;
+  async function loadBrief() {
+    const who = boundTo();
+    briefLog.innerHTML = "";
+    if (!who) { briefLog.innerHTML = '<div class="bitem">Nobody else is in the room yet, so there is no shared board to read.</div>'; return; }
+    briefLog.innerHTML = '<div class="bitem">reading the board…</div>';
+    try {
+      const r = await fetch(BRIDGE.replace("/ask", "/agenda"), {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ who }),
+      });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.message);
+      const out = [];
+      if (d.carried.length) {
+        out.push('<div class="bsec">Carried over</div>');
+        // The carried COUNT is the point: an item that has moved three times is not going to
+        // move on its own, and saying so is more useful than listing it again quietly.
+        d.carried.forEach((c) => out.push(
+          `<div class="bitem"><span class="bcarr">${c.carried}x</span><span><span class="bwho">${esc(c.owner)}</span><br>${esc(c.task)}</span></div>`));
+      }
+      if (d.decide.length) {
+        out.push('<div class="bsec">Your list says these need BOTH of you</div>');
+        d.decide.forEach((x) => out.push(`<div class="bitem"><span>${esc(x.title)}</span></div>`));
+      }
+      if (d.open.length) {
+        out.push(`<div class="bsec">Still open (${d.open.length} shown)</div>`);
+        d.open.forEach((i) => out.push(
+          `<div class="bitem"><span><span class="bwho">${esc(i.owner)}</span><br>${esc(i.task)}</span></div>`));
+      }
+      if (!out.length) out.push('<div class="bitem">Nothing carried and nothing open. That is a good meeting to have.</div>');
+      briefLog.innerHTML = out.join("");
+      briefLoaded = true;
+    } catch {
+      briefLog.innerHTML = hostish()
+        ? '<div class="bitem">The memory bridge is not running on this machine. Start it with <code>node bridge.mjs</code>.</div>'
+        : '<div class="bitem">This board lives on the host\u2019s machine. Ask them to press <b>Present</b>.</div>';
+    }
+  }
+  document.getElementById("tabbrief").onclick = () => { showTab("brief"); if (!briefLoaded) void loadBrief(); };
+
+  // ---- PRESENT: the host shows, the guest receives -------------------------------------
+  // A guest cannot reach the host's bridge, and should not be able to. So the host BROADCASTS
+  // what they are looking at over the data channel.
+  //
+  // ⭐ THE MARKDOWN IS SENT, NOT THE HTML. The receiver renders it through its OWN mdToHtml,
+  // which escapes everything - so a participant can never inject markup into anyone else's
+  // panel. Receiving HTML from the wire and assigning innerHTML would be an XSS hole dressed
+  // up as a feature.
+  let lastMarkdown = "";
+  const hostish = () => location.hostname === "localhost" || !!lastMarkdown || bridgeSeen;
+  let bridgeSeen = false;
+
+  document.getElementById("presentbtn").onclick = async () => {
+    if (!lastMarkdown || room.state !== "connected") return;
+    const b = document.getElementById("presentbtn");
+    try {
+      await room.localParticipant.publishData(
+        enc.encode(JSON.stringify({ t: "present", md: lastMarkdown.slice(0, 12000) })), { reliable: true });
+      b.textContent = "sent";
+      setTimeout(() => { b.textContent = "Present"; }, 1600);
+      say("presented the client brief to the room", true);
+    } catch { say("could not present that", true); }
+  };
+
+  // ---- THE CLIENT BRIEF: the thing you are actually meeting about ----------------------
+  // The Brief tab reads the board YOU TWO share. This one reads a CLIENT's own folder - the
+  // research done before the call, on screen, so the meeting is spent deciding rather than
+  // recapping. This is the panel the pre-brief mock showed, and the reason the room was
+  // wanted in the first place.
+  //
+  // Isolation is enforced by PATH, not intention: the bridge refuses anything that is not a
+  // plain slug, so it cannot walk out of the clients directory into the rest of the network.
+  const clientLog = document.getElementById("clientlog");
+
+  function mdToHtml(md) {
+    const out = []; let list = null;
+    const rich = (x) => esc(x)
+      .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+      .replace(/`(.+?)`/g, "<code>$1</code>")
+      .replace(/\[\[(.+?)\]\]/g, "$1");
+    for (const raw of md.split("\n")) {
+      const t = raw.trimEnd();
+      if (t.startsWith("# ")) { if (list) { out.push("</" + list + ">"); list = null; } out.push("<h1>" + rich(t.slice(2)) + "</h1>"); continue; }
+      if (t.startsWith("## ")) { if (list) { out.push("</" + list + ">"); list = null; } out.push("<h2>" + rich(t.slice(3)) + "</h2>"); continue; }
+      const num = t.match(/^(\d+)\. (.*)$/);
+      if (num) { if (list !== "ol") { if (list) out.push("</" + list + ">"); out.push("<ol>"); list = "ol"; } out.push("<li>" + rich(num[2]) + "</li>"); continue; }
+      if (t.startsWith("- ")) { if (list !== "ul") { if (list) out.push("</" + list + ">"); out.push("<ul>"); list = "ul"; } out.push("<li>" + rich(t.slice(2)) + "</li>"); continue; }
+      if (list) { out.push("</" + list + ">"); list = null; }
+      if (t.trim()) out.push("<p>" + rich(t) + "</p>");
+    }
+    if (list) out.push("</" + list + ">");
+    return out.join("");
+  }
+
+  async function loadClient(slug) {
+    clientLog.innerHTML = "<p>loading\u2026</p>";
+    try {
+      const r = await fetch(BRIDGE.replace("/ask", "/client"), {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ who: boundTo() || "alex", client: slug }),
+      });
+      const d = await r.json();
+      if (!d.ok) { clientLog.innerHTML = "<p>" + esc(d.message || "not found") + "</p>"; return; }
+      lastMarkdown = d.markdown;
+      bridgeSeen = true;
+      clientLog.innerHTML = mdToHtml(d.markdown);
+    } catch (e) {
+      // ⭐ THE PANEL IS THE HOST'S, AND A GUEST IS NOT BROKEN. The bridge is bound to the
+      // HOST's loopback, deliberately - a guest must never be able to query someone else's
+      // memory network. So a guest reaching this branch is the system working, and telling
+      // them to run a command on a laptop they do not own is both confusing and a small leak
+      // of how the thing is built. They get the honest sentence instead, and the host gets
+      // the command.
+      clientLog.innerHTML = hostish()
+        ? "<p>The memory bridge is not running on this machine. Start it with <code>node bridge.mjs</code>.</p>"
+        : "<p>This panel reads the host's memory network, so it only loads on their machine. Ask them to press <b>Present</b> and it will appear here.</p>";
+    }
+  }
+
+  document.getElementById("clientform").onsubmit = (e) => {
+    e.preventDefault();
+    const v = document.getElementById("clientinput").value.trim().toLowerCase();
+    if (v) void loadClient(v);
+  };
+
+  // The client can be named in the LINK (?client=courtland), so a room opened for a client
+  // arrives already showing their brief rather than needing a slug typed mid-call.
+  const preClient = q.get("client");
+  document.getElementById("tabclient").onclick = () => {
+    showTab("client");
+    if (!clientLog.innerHTML.trim()) void loadClient(preClient || "courtland");
+  };
+
+  // ---- FILES: participant to participant, nothing stored anywhere ---------------------
+  // LiveKit ships byte streams, so this is an SDK feature rather than hand-rolled chunking:
+  // sendFile on one side, a registered topic handler on the other, with name, mime type and
+  // chunking handled.
+  //
+  // ⭐ NOTHING IS UPLOADED AND NOTHING IS KEPT. The bytes go peer to peer and exist only in the
+  // recipient's browser until they save them. That is a genuine privacy property and also a
+  // genuine limitation, so the card SAYS it rather than letting someone assume there is a
+  // history to come back to.
+  const FILE_TOPIC = "files";
+  const human = (n) => n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(0) + " KB" : (n / 1048576).toFixed(1) + " MB";
+
+  function fileCard(name, size, url, from) {
+    const d = document.createElement("div");
+    d.className = "msg";
+    d.innerHTML = `<b>${esc(from)}</b>`;
+    const card = document.createElement("div");
+    card.className = "filecard";
+    card.innerHTML =
+      `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">` +
+      `<path d="M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8l6 6v12a2 2 0 0 1-2 2z"/><path d="M14 2v5a1 1 0 0 0 1 1h5"/></svg>` +
+      `<span class="fmeta"><span class="fname">${esc(name)}</span>` +
+      `<span class="fsize">${human(size)}${url ? "" : " · sending"}</span></span>`;
+    if (url) {
+      const a = document.createElement("a");
+      a.href = url; a.download = name; a.textContent = "Save";
+      card.appendChild(a);
+    }
+    d.appendChild(card);
+    chatLog.appendChild(d);
+    chatLog.scrollTop = chatLog.scrollHeight;
+    return card;
+  }
+
+  room.registerByteStreamHandler(FILE_TOPIC, async (reader, info) => {
+    const name = (reader.info && reader.info.name) || "file";
+    const total = (reader.info && reader.info.totalLength) || 0;
+    const from = (info && (info.name || info.identity)) || "someone";
+    const chunks = [];
+    for await (const chunk of reader) chunks.push(chunk);
+    const blob = new Blob(chunks, { type: (reader.info && reader.info.mimeType) || "application/octet-stream" });
+    fileCard(name, blob.size || total, URL.createObjectURL(blob), from);
+    if (!chatEl.classList.contains("open")) document.getElementById("chatdot").hidden = false;
+  });
+
+  document.getElementById("filebtn").onclick = () => document.getElementById("fileinput").click();
+  document.getElementById("fileinput").onchange = async (e) => {
+    const f = e.target.files && e.target.files[0];
+    e.target.value = "";
+    if (!f || room.state !== "connected") return;
+    // A hard cap, stated rather than discovered. Big files over a data channel are slow and
+    // there is no resume - a failed 200MB send is 200MB of nobody's time.
+    if (f.size > 50 * 1024 * 1024) { say("that file is over 50 MB - send a link instead", true); return; }
+    const card = fileCard(f.name, f.size, null, "You");
+    try {
+      await room.localParticipant.sendFile(f, { topic: FILE_TOPIC });
+      card.querySelector(".fsize").textContent = human(f.size) + " · sent";
+    } catch {
+      card.querySelector(".fsize").textContent = human(f.size) + " · failed to send";
+    }
+  };
 
   document.getElementById("invite").onclick = async () => {
     try {
@@ -769,7 +1287,10 @@
       rememberDevices();
       countPeople();
       paintNet("good");
-      if (wantMic) startRec(); else setTxState("off (muted)");
+      if (POLICY_NOTX) setTxState("off for this meeting");
+      else if (wantMic) startRec();
+      else setTxState("off (muted)");
+      applyPolicy();
       setMutedLook(room.localParticipant.identity, !wantMic);
       paintFooter();
       const cam = room.localParticipant.getTrackPublication(LK.Track.Source.Camera);
@@ -813,14 +1334,32 @@
     camBtn.querySelector("span").textContent = on ? "Camera off" : "Camera on";
   };
 
+  // SCREEN SHARE DOES NOT EXIST IN ANY MOBILE BROWSER - not iOS Safari, not Chrome on
+  // Android. The Screen Capture API is simply absent, so the button is REMOVED rather than
+  // left to throw when tapped. A control that errors on touch teaches people the whole app is
+  // unreliable. Feature-detected, never sniffed from the user agent.
+  const canShare = typeof navigator.mediaDevices?.getDisplayMedia === "function";
+  if (!canShare) {
+    const sb = document.getElementById("share");
+    sb.disabled = true;
+    sb.title = "Screen sharing is not available on mobile browsers";
+    sb.querySelector("span").textContent = "No sharing on mobile";
+    sb.style.opacity = ".5";
+  }
+
   const shareBtn = document.getElementById("share");
   shareBtn.onclick = async () => {
+    if (!canShare) return;
     const on = room.localParticipant.isScreenShareEnabled;
     // surfaceSwitching: "include" is the fix for the window-hunting problem - it asks Chrome
     // to expose its native "Share this tab instead" button, so switching what you share is
     // one click instead of stop-repick-restart. Chrome fast-switches TABS only, so sharing a
     // whole window or screen will not get the button.
-    await room.localParticipant.setScreenShareEnabled(!on, { surfaceSwitching: "include", audio: false });
+    // AUDIO: TRUE. It was false, so a shared video played silently for everyone else - which
+    // reads as "the share is broken" rather than "the audio was never sent". Chrome and Edge
+    // capture tab audio when you pick a TAB (not a window or a whole screen), which is another
+    // reason to tell people to share a tab.
+    await room.localParticipant.setScreenShareEnabled(!on, { surfaceSwitching: "include", audio: true });
     shareBtn.classList.toggle("on", !on);
     shareBtn.querySelector("span").textContent = on ? "Share screen" : "Stop sharing";
     if (on) main.classList.remove("sharing"); else main.classList.add("sharing");
@@ -879,7 +1418,35 @@
   // every later cue simply works. Nothing plays on the pre-join screen by design.
   const play = (n) => { try { sfx[n](); } catch {} };
 
-  document.getElementById("leave").onclick = () => { stopRec(); play("leave"); room.disconnect(); };
+  // ⭐ NEVER LOSE THE TRANSCRIPT SILENTLY. It lives only in this tab, so closing the window
+  // is a permanent delete with no warning. Leaving now offers it - once, plainly, and it does
+  // not nag if there was nothing said.
+  function endSession(reason) {
+    stopRec();
+    if (!lines.length) { gate.style.display = "grid"; gtitle.textContent = "You left the room"; gmsg.textContent = reason; return; }
+    gate.style.display = "grid";
+    gtitle.textContent = "Before you go";
+    gtitle.className = "";
+    gmsg.innerHTML = `The transcript from this meeting has <b>${lines.length}</b> line` +
+      `${lines.length === 1 ? "" : "s"} and it only exists in this tab. Closing the window deletes it.`;
+    gextra.textContent = "";
+    const pj = document.querySelector(".prejoin");
+    if (pj) pj.style.display = "none";
+    const devs = document.getElementById("predevs"); if (devs) devs.style.display = "none";
+    const tests = document.querySelector(".tests"); if (tests) tests.style.display = "none";
+    const hint = document.getElementById("devhint"); if (hint) hint.style.display = "none";
+    const btn = document.getElementById("gjoin");
+    btn.textContent = "Download the transcript";
+    btn.onclick = () => { document.getElementById("txdl").click(); btn.textContent = "Downloaded"; };
+  }
+
+  document.getElementById("leave").onclick = () => { play("leave"); room.disconnect(); };
+
+  // The browser will only show its own generic wording here, but the prompt is what matters:
+  // it stops a reflex window-close from binning a meeting's transcript.
+  window.addEventListener("beforeunload", (e) => {
+    if (lines.length && room.state === "connected") { e.preventDefault(); e.returnValue = ""; }
+  });
 })();
 </script>
 </body>

@@ -55,9 +55,21 @@
     border:0;border-top:1px solid rgba(242,201,76,.45);border-radius:0;
     background:rgba(242,201,76,.14);color:var(--gold)}
   #unblock.on{display:inline-flex}
+  /* THE ALONE BAR. Same full-width treatment as the audio gate, for the same reason: the thing
+     it is telling you is the reason the meeting is not happening. */
+  #alonebar{display:none;gap:10px;align-items:flex-start;width:100%;padding:13px 14px;
+    border-top:1px solid rgba(242,201,76,.45);background:rgba(242,201,76,.14);
+    font-size:13px;line-height:1.5}
+  #alonebar.on{display:flex}
+  #alonebar b{color:var(--gold);font-weight:650}
+  #alonebar code{font-family:var(--mono);font-size:12px}
+  #alonebar .x{margin-left:auto;flex:none}
   button{font-family:inherit;font-size:13px;font-weight:600;padding:9px 15px;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:8px}
   button:hover{border-color:var(--dim)}
   button.on{border-color:rgba(143,214,148,.55);background:rgba(143,214,148,.14);color:var(--green)}
+  /* A share that is sending no sound is ON but not HEALTHY, so it must not read as green.
+     Gold for the whole share, because the sharer cannot otherwise tell the two apart. */
+  button.on.nosound{border-color:rgba(242,201,76,.55);background:rgba(242,201,76,.14);color:var(--gold)}
   button.danger{border-color:rgba(232,96,76,.5);background:rgba(232,96,76,.14);color:var(--red)}
   button:disabled{opacity:.45;cursor:default}
   svg{width:16px;height:16px}
@@ -242,7 +254,7 @@
   <div id="asklog" hidden></div>
   <div id="brieflog" hidden></div>
   <div id="clientlog" hidden></div>
-  <form id="clientform" hidden><input id="clientinput" placeholder="client, e.g. courtland" autocomplete="off" maxlength="40"><button type="submit">Load</button><button id="presentbtn" type="button" title="show this to everyone in the room">Present</button></form>
+  <form id="clientform" hidden><input id="clientinput" placeholder="client, e.g. acme" autocomplete="off" maxlength="40"><button type="submit">Load</button><button id="presentbtn" type="button" title="show this to everyone in the room">Present</button></form>
   <form id="askform" hidden><input id="askinput" placeholder="Ask the memory network" autocomplete="off" maxlength="300"><button type="submit">Ask</button></form>
   <div id="txbanner"><b id="txbannert">Paused</b><span id="txbannerm">Your mic is muted. Nothing is being captured. Talk freely.</span></div>
   <div id="txbar" hidden>
@@ -266,6 +278,14 @@
   <label>Microphone <select id="selmic2"></select></label>
   <label>Camera <select id="selcam2"></select></label>
   <label id="lblspk2">Speakers <select id="selspk2"></select></label>
+</div>
+
+<div id="alonebar">
+  <div><b>Nobody else is here.</b> You are alone in <code id="aloneroom">this room</code>.
+  If the other person opened a different link, they are sitting in a different room right now
+  and it looks exactly this normal to them. Compare the room name on both screens, or send them
+  the link from this address bar with Copy invite.</div>
+  <button class="chip x" id="alonex" type="button">dismiss</button>
 </div>
 
 <button id="unblock">
@@ -395,7 +415,10 @@
     d.querySelector(".notrec").style.display = muted ? "" : "none";
   }
 
-  function attach(track, sid) {
+  // A screen share is TWO separate tracks: screen_share (the picture) and screen_share_audio
+  // (the sound). They arrive as independent subscriptions, so anything that handles only the
+  // first one shares a silent movie.
+  function attach(track, sid, isLocal) {
     const d = el[sid];
     if (!d) return;
     if (track.source === LK.Track.Source.ScreenShare) {
@@ -404,17 +427,66 @@
       play("share");
       return;
     }
-    if (track.kind === "video") { track.attach(d.querySelector("video")); d.querySelector(".avatar").style.display = "none"; }
-    else if (!d.querySelector("video").muted) { const a = track.attach(); a.style.display = "none"; d.appendChild(a); }
+    if (track.kind === "video") {
+      track.attach(d.querySelector("video"));
+      d.querySelector(".avatar").style.display = "none";
+      return;
+    }
+    // AUDIO, both kinds: the microphone AND screen_share_audio, handled identically. Your own
+    // audio is never attached, because hearing yourself is an echo.
+    //
+    // DO NOT test the tile video's .muted to decide that. This branch used to read
+    // `!d.querySelector("video").muted` as a stand-in for "not me", and LiveKit's
+    // attachToElement runs `element.muted = (stream has no audio tracks)` on EVERY attach, so
+    // the moment a camera track landed on that element the flag flipped true and every audio
+    // track arriving afterwards was dropped on the floor: no element, no play(), no error.
+    // That silently killed screen-share sound for anyone with their camera on, and killed the
+    // microphone too for anyone who joined muted and unmuted later. Locality is passed in now
+    // because it is a fact about the participant, not about a DOM property LiveKit owns.
+    if (isLocal) return;
+    // Screen sound deliberately does NOT go on to the #screen element. Attaching it there
+    // would clear that element's muted flag, and iOS Safari then refuses to autoplay the
+    // screen VIDEO at all, trading silent audio for no picture.
+    const a = track.attach();
+    a.style.display = "none";
+    d.appendChild(a);
+    // iOS Safari (and Chrome's autoplay policy) can reject play() outright. It fails without
+    // an exception anywhere else, so catch it here and raise the existing tap-to-enable-sound
+    // button rather than staying mute forever with every control still looking correct.
+    const p = a.play();
+    if (p && typeof p.catch === "function") p.catch(() => { audioPlayBlocked = true; paintAudioGate(); });
   }
 
+  // ⚠️ THE ONE FAILURE THIS ROOM USED TO HIDE (2026-07-31). Joining the WRONG room is not an
+  // error anywhere in the stack: the room name lives inside the signed token, and the server
+  // creates a room on first join rather than rejecting an unknown one. So two people holding
+  // links to two different rooms each get a working, quiet, completely ordinary call, and the
+  // only clue is a four-character difference in a chip neither of them has anything to compare
+  // against. It happened for real, twice in fifteen minutes. Silence is the bug, so break it.
+  const aloneBar = document.getElementById("alonebar");
+  let sawSomeone = false;
+  let aloneTimer = null;
+  function clearAlone() { sawSomeone = true; clearTimeout(aloneTimer); aloneBar.classList.remove("on"); }
+  function armAloneCheck() {
+    clearTimeout(aloneTimer);
+    // Long enough that the person who dials in first is not scolded for being early, short
+    // enough to save the call. Being genuinely first looks identical to being in the wrong
+    // room, which is why the wording names both possibilities instead of picking one.
+    aloneTimer = setTimeout(() => {
+      if (sawSomeone || room.state !== "connected" || room.remoteParticipants.size > 0) return;
+      document.getElementById("aloneroom").textContent = room.name;
+      aloneBar.classList.add("on");
+    }, 45000);
+  }
+  document.getElementById("alonex").onclick = () => clearAlone();
+
   room
-    .on(LK.RoomEvent.ParticipantConnected, (p) => { tileFor(p.identity, p.name || p.identity, false); countPeople(); play("join"); say(`${p.name || p.identity} joined`, true); })
+    .on(LK.RoomEvent.ParticipantConnected, (p) => { clearAlone(); tileFor(p.identity, p.name || p.identity, false); countPeople(); play("join"); say(`${p.name || p.identity} joined`, true); })
     .on(LK.RoomEvent.ParticipantDisconnected, (p) => { if (el[p.identity]) { el[p.identity].remove(); delete el[p.identity]; } countPeople(); play("leave"); say(`${p.name || p.identity} left`, true); })
     .on(LK.RoomEvent.ConnectionQualityChanged, (q, p) => { if (p && p.isLocal) paintNet(q); })
     .on(LK.RoomEvent.Reconnecting, () => paintNet("poor"))
     .on(LK.RoomEvent.Reconnected, () => { paintNet("good"); say("reconnected", true); })
-    .on(LK.RoomEvent.TrackSubscribed, (track, pub, p) => { tileFor(p.identity, p.name || p.identity, false); attach(track, p.identity); })
+    .on(LK.RoomEvent.TrackSubscribed, (track, pub, p) => { tileFor(p.identity, p.name || p.identity, false); attach(track, p.identity, !!p.isLocal); })
     .on(LK.RoomEvent.TrackUnsubscribed, (track, pub, p) => {
       track.detach();
       if (track.source === LK.Track.Source.ScreenShare) main.classList.remove("sharing");
@@ -433,10 +505,18 @@
   // the button appears only when playback is genuinely blocked and hides itself the moment it
   // is not, which keeps it out of the way of everyone who never hits this.
   const unblockBtn = document.getElementById("unblock");
-  function paintAudioGate() { unblockBtn.classList.toggle("on", !room.canPlaybackAudio); }
+  // room.canPlaybackAudio is LiveKit's view. It is not the whole story: an individual
+  // element's play() can be rejected while the room still believes playback is fine, and that
+  // is exactly the shape iOS takes when a second audio track (screen sound) arrives later. So
+  // a rejected play() latches here and the same button covers both causes.
+  let audioPlayBlocked = false;
+  function paintAudioGate() { unblockBtn.classList.toggle("on", !room.canPlaybackAudio || audioPlayBlocked); }
   // startAudio() has to be called SYNCHRONOUSLY inside the tap. A user gesture is spent by
   // the first await, so awaiting anything before it turns this button into a no-op.
-  unblockBtn.onclick = () => { room.startAudio().catch(() => {}); };
+  // It replays every attached audio element, which is what clears the latch.
+  unblockBtn.onclick = () => {
+    room.startAudio().then(() => { audioPlayBlocked = false; paintAudioGate(); }).catch(() => {});
+  };
 
   // PRE-JOIN (owner, 2026-07-30): "have the mic and camera off by default and let them choose
   // the option to turn it on when they join." Off is the right default for a link someone
@@ -662,6 +742,14 @@
     chatLog.appendChild(d);
     chatLog.scrollTop = chatLog.scrollHeight;
   }
+  // The chat drawer is display:none until .open, so a plain say() into a closed drawer is
+  // invisible: written, scrolled, and seen by nobody. Anything the room needs someone to
+  // actually READ goes through here instead, which raises the dot on the button they are
+  // already looking at.
+  function raiseChatDot() {
+    if (!chatEl.classList.contains("open")) document.getElementById("chatdot").hidden = false;
+  }
+  function notify(html) { say(html, true); raiseChatDot(); }
   // Everything from the wire is inserted as TEXT, never as markup - a chat that renders HTML
   // from another participant is an XSS hole with a friendly face.
   const esc = (t) => { const d = document.createElement("div"); d.textContent = t; return d.innerHTML; };
@@ -1230,12 +1318,12 @@
     if (v) void loadClient(v);
   };
 
-  // The client can be named in the LINK (?client=courtland), so a room opened for a client
+  // The client can be named in the LINK (?client=acme), so a room opened for a client
   // arrives already showing their brief rather than needing a slug typed mid-call.
   const preClient = q.get("client");
   document.getElementById("tabclient").onclick = () => {
     showTab("client");
-    if (!clientLog.innerHTML.trim()) void loadClient(preClient || "courtland");
+    if (!clientLog.innerHTML.trim()) void loadClient(preClient || "acme");
   };
 
   // ---- FILES: participant to participant, nothing stored anywhere ---------------------
@@ -1280,7 +1368,7 @@
     for await (const chunk of reader) chunks.push(chunk);
     const blob = new Blob(chunks, { type: (reader.info && reader.info.mimeType) || "application/octet-stream" });
     fileCard(name, blob.size || total, URL.createObjectURL(blob), from);
-    if (!chatEl.classList.contains("open")) document.getElementById("chatdot").hidden = false;
+    raiseChatDot();
   });
 
   document.getElementById("filebtn").onclick = () => document.getElementById("fileinput").click();
@@ -1346,8 +1434,9 @@
       setMutedLook(room.localParticipant.identity, !wantMic);
       paintFooter();
       const cam = room.localParticipant.getTrackPublication(LK.Track.Source.Camera);
-      if (cam && cam.track) attach(cam.track, room.localParticipant.identity);
+      if (cam && cam.track) attach(cam.track, room.localParticipant.identity, true);
       room.remoteParticipants.forEach((p) => tileFor(p.identity, p.name || p.identity, false));
+      if (room.remoteParticipants.size > 0) clearAlone(); else armAloneCheck();
       gate.style.display = "none";
     } catch (e) {
       // Honest failure. The overwhelmingly likely causes are an expired token or a denied
@@ -1400,22 +1489,82 @@
   }
 
   const shareBtn = document.getElementById("share");
+  // Say it on the control itself, before the picker ever opens. The single most useful fact
+  // about sharing sound is that the sound is a CHECKBOX you have to tick, and it is off by
+  // default. A tab pick is the surest route because tab audio has worked everywhere for
+  // years; a whole-screen pick can carry system sound too, but only on a recent Chromium on
+  // macOS 14.2+, so it is offered as the second-best answer rather than the promise.
+  // Guarded: on mobile this button already carries the refusal above, and overwriting it with
+  // advice about a picker that will never open would be worse than saying nothing.
+  if (canShare) shareBtn.title = "To share sound too, tick the audio box in the picker. Sharing a browser TAB is the most reliable way to get it.";
+
+  // Chrome, Edge and Brave accept systemAudio. Firefox and Safari ignore an unknown option
+  // rather than throwing (WebIDL drops unrecognized dictionary members), so this is safe
+  // everywhere. It is still not ASSUMED: a browser that rejects the option makes the call
+  // throw, and the retry below drops it and shares anyway. Never feature-sniffed by name,
+  // because there is no reliable way to ask a browser whether it honors this one.
+  const SHARE_OPTS = { surfaceSwitching: "include", audio: true, systemAudio: "include" };
+
+  // One place decides what this button says, because there are now three ways the share can
+  // change state: our button, Chrome's own "Stop sharing" bar, and the track simply ending.
+  function paintShare(on, withSound) {
+    shareBtn.classList.toggle("on", on);
+    shareBtn.classList.toggle("nosound", on && !withSound);
+    shareBtn.querySelector("span").textContent =
+      !on ? "Share screen" : withSound ? "Stop sharing" : "Sharing, no sound";
+  }
+
   shareBtn.onclick = async () => {
     if (!canShare) return;
     const on = room.localParticipant.isScreenShareEnabled;
-    // surfaceSwitching: "include" is the fix for the window-hunting problem - it asks Chrome
-    // to expose its native "Share this tab instead" button, so switching what you share is
-    // one click instead of stop-repick-restart. Chrome fast-switches TABS only, so sharing a
-    // whole window or screen will not get the button.
-    // AUDIO: TRUE. It was false, so a shared video played silently for everyone else - which
-    // reads as "the share is broken" rather than "the audio was never sent". Chrome and Edge
-    // capture tab audio when you pick a TAB (not a window or a whole screen), which is another
-    // reason to tell people to share a tab.
-    await room.localParticipant.setScreenShareEnabled(!on, { surfaceSwitching: "include", audio: true });
-    shareBtn.classList.toggle("on", !on);
-    shareBtn.querySelector("span").textContent = on ? "Share screen" : "Stop sharing";
-    if (on) main.classList.remove("sharing"); else main.classList.add("sharing");
+    if (on) {
+      await room.localParticipant.setScreenShareEnabled(false);
+      paintShare(false, false);
+      main.classList.remove("sharing");
+      return;
+    }
+    // surfaceSwitching: "include" asks Chrome to expose its native "Share this tab instead"
+    // button, so changing what you share is one click instead of stop-repick-restart.
+    try {
+      await room.localParticipant.setScreenShareEnabled(true, SHARE_OPTS);
+    } catch (e) {
+      // A canceled picker is a normal thing a person does, not a failure to report.
+      if (e && (e.name === "NotAllowedError" || e.name === "AbortError")) return;
+      // Anything else is most likely the browser refusing an option it does not know. Drop
+      // the newest one and share without it rather than failing the share entirely.
+      try { await room.localParticipant.setScreenShareEnabled(true, { surfaceSwitching: "include", audio: true }); }
+      catch (e2) {
+        if (e2 && (e2.name === "NotAllowedError" || e2.name === "AbortError")) return;
+        notify("the screen share could not start: " + esc(String((e2 && e2.message) || e2)));
+        return;
+      }
+    }
+    main.classList.add("sharing");
+
+    // NEVER SHARE SILENTLY WITHOUT SAYING SO. Chrome does not error when the audio box is
+    // left unticked: getDisplayMedia RESOLVES with zero audio tracks and LiveKit publishes
+    // the picture on its own, perfectly happily. From the sharer's chair that is
+    // indistinguishable from success, so you tell people to listen to a video nobody can
+    // hear. Read back what actually went on the wire and put it on the button, which stays
+    // on screen for the whole share, as well as in the chat.
+    const sa = room.localParticipant.getTrackPublication(LK.Track.Source.ScreenShareAudio);
+    const withSound = !!(sa && sa.track);
+    paintShare(true, withSound);
+    if (withSound) {
+      say("sharing your screen, sound included", true);
+    } else {
+      notify("sharing your screen <b>without its sound</b>, so nobody can hear it. Stop the share, start it again, and tick the audio box in the picker. Picking a browser TAB is the most reliable way to get sound.");
+    }
   };
+
+  // Chrome's own floating "Stop sharing" bar ends the track WITHOUT going through our button.
+  // Unhandled, the button sits there claiming a share that stopped minutes ago, which with the
+  // new no-sound state would be a gold warning about a share that no longer exists.
+  room.on(LK.RoomEvent.LocalTrackUnpublished, (pub) => {
+    if (!pub || pub.source !== LK.Track.Source.ScreenShare) return;
+    paintShare(false, false);
+    main.classList.remove("sharing");
+  });
 
   // ---- SOUNDS -----------------------------------------------------------------------
   // SYNTHESISED IN CODE, not files. Three reasons, in order of weight:

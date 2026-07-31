@@ -6,6 +6,13 @@ thing you deploy.**
 
 Drop `public/` on any static host and it works.
 
+![A meeting in progress: two participants, the connection quality, and the control bar](docs/images/room.png)
+
+Everyone lands here first. **The microphone and camera start off**, and joining with both off to
+just listen is a normal thing to do rather than a mistake.
+
+![The pre-join screen: mic and camera off, device pickers, and mic and speaker tests](docs/images/prejoin.png)
+
 > ⚠️ **[docs/BROWSER-SUPPORT.md](docs/BROWSER-SUPPORT.md)** - READ THIS BEFORE TRUSTING THE
 > TRANSCRIPT. The call works nearly everywhere; the transcript does not, **Brave fails while
 > looking like it works**, and even where it works the API drops words by design.

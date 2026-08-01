@@ -1,10 +1,16 @@
 # Meeting room kit
 
-A **static** web page that hosts a real video meeting: camera, microphone, screen share, text
-chat, and a live transcript. **No server, no database, no accounts, and no credentials in the
-thing you deploy.**
+A web page that hosts a real video meeting: camera, microphone, screen share, text chat, and a
+live transcript. **Configurable for what you need**, starting from nothing.
 
-Drop `public/` on any static host and it works.
+Drop `public/` on any static host and it works: no server, no database, no accounts, and no
+credentials in the thing you deploy. That path is not going away and stays the default.
+
+From there it grows only if you want it to. **Client modules** are a JS file the page loads and
+need no infrastructure at all. **Server modules** are opt-in, for the few things a browser
+genuinely cannot do: accounts, admission, persistence, recording. A deployment with no server
+runs the client modules and honestly says which surfaces it does not have. See
+[docs/MODULES.md](docs/MODULES.md).
 
 ![A meeting in progress: two participants, the connection quality, and the control bar](docs/images/room.png)
 

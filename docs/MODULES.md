@@ -65,6 +65,27 @@ smaller product, not a broken one, and the UI says which.
    failure mode that makes the whole system untrustworthy.
 5. **A missing module is honest, never silent.** The surface says it is not installed.
 
+## Accounts are ASYMMETRIC, and that is the whole design
+
+Decided 2026-08-01. The instinct with "add accounts" is to make everyone sign in. For a meeting
+room that is backwards, and expensively so.
+
+**Guests never register.** A client is in one room, once. Asking them to make an account is
+friction at the worst possible moment in the relationship, and it buys nothing: you can see them
+on video, and their name is already on their tile and in the transcript.
+
+**Hosts sign in, by MAGIC LINK.** A host is the one who needs real identity, because a host mints
+rooms, admits people, and owns the recording and the transcript. Email a one-time link, set a
+signed cookie, done. No passwords to store and no OAuth app to register and get reviewed, which
+matters more than it sounds: a week was lost this month to one provider's app review.
+
+**The shape follows the usage:** many one-off guests, a handful of repeat hosts. Anything that
+taxes the many to identify the few is the wrong trade.
+
+This is a **server module** by the split above, since it needs to send mail, sign cookies and keep
+state. A deployment without it still runs: everyone is a guest, links are the access control, and
+the UI says so rather than pretending.
+
 ## Identity, and why it is smaller than it looks
 
 Speaker attribution needs **no diarization and no voice fingerprinting.** Every participant in a
